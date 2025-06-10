@@ -63,11 +63,11 @@ export type Fish = {
 
 // Ggf. auch andere Typen hier zentralisieren:
 export type FilterState = {
-  haltung?: string;
-  ernahrung?: string;
-  temperatur?: string;
-  schwimmhoehe?: string;
-  herkunft?: string;
+  haltung?: string[];       // Array!
+  ernahrung?: string[];     // Array!
+  temperatur?: { min: number; max: number }; 
+  schwimmhoehe?: string[];  // Array!
+  herkunft?: string[];      // Array!
 };
 
 export type FilterOptions = {
@@ -77,3 +77,4 @@ export type FilterOptions = {
   schwimmhoehe: string[];
   herkunft: string[];
 };
+

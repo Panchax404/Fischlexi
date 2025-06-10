@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import FilterBar from "../../components/FilterBar"; // Dein Pfad
-import type { FilterState } from "../../components/FilterBar"; // Importiere FilterState von FilterBar oder lib/types
+import type { FilterState } from '../../lib/types';
 import FishCard from "../../components/FishCard"; // Dein Pfad
 import Pagination from "../../components/Pagination"; // Dein Pfad
 
