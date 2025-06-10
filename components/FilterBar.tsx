@@ -115,17 +115,19 @@ const FilterBar: React.FC<FilterBarProps> = ({ filter, setFilter, options, disab
   const initialTempMin = filter.temperatur?.min ?? GLOBAL_MIN_TEMP;
   const initialTempMax = filter.temperatur?.max ?? GLOBAL_MAX_TEMP;
   const [tempRange, setTempRange] = useState<[number, number]>([initialTempMin, initialTempMax]);
-  const [isTempAccordionOpen, setIsTempAccordionOpen] = useState(false); // State für Temperatur-Akkordeon
+  const [isTempAccordionOpen, setIsTempAccordionOpen] = useState(false);
 
   useEffect(() => {
     const newMin = filter.temperatur?.min ?? GLOBAL_MIN_TEMP;
     const newMax = filter.temperatur?.max ?? GLOBAL_MAX_TEMP;
-    setTempRange([newMin, newMax]);
-    // Öffne das Akkordeon, wenn ein Temperaturfilter aktiv ist (außer den globalen Grenzen)
-    if (newMin !== GLOBAL_MIN_TEMP || newMax !== GLOBAL_MAX_TEMP) {
-        setIsTempAccordionOpen(true);
+    // Verhindere unnötige Updates, wenn sich die Werte nicht geändert haben
+    if (newMin !== tempRange[0] || newMax !== tempRange[1]) {
+      setTempRange([newMin, newMax]);
     }
-  }, [filter.temperatur]);
+    if (newMin !== GLOBAL_MIN_TEMP || newMax !== GLOBAL_MAX_TEMP) {
+      if (!isTempAccordionOpen) setIsTempAccordionOpen(true); // Nur öffnen, wenn nicht schon offen
+    }
+  }, [filter.temperatur]); // Abhängigkeit nur von filter.temperatur
 
   const handleCheckboxChange = (filterKey: keyof Omit<FilterState, 'temperatur'>, value: string) => {
     setFilter(prevFilter => {
@@ -164,7 +166,6 @@ const FilterBar: React.FC<FilterBarProps> = ({ filter, setFilter, options, disab
   const hasActiveMultiFilters = Object.keys(filter).some(key => key !== 'temperatur' && Array.isArray(filter[key as keyof FilterState]) && (filter[key as keyof FilterState] as string[]).length > 0);
 
   const handleTemperatureChange = (value: number | number[]) => {
-    // value ist hier [min, max] vom Range Slider
     if (Array.isArray(value) && value.length === 2) {
       setTempRange([value[0], value[1]]);
     }
@@ -173,17 +174,14 @@ const FilterBar: React.FC<FilterBarProps> = ({ filter, setFilter, options, disab
   const handleTemperatureAfterChange = (value: number | number[]) => {
     if (Array.isArray(value) && value.length === 2) {
       const [min, max] = value;
-      if ((min === GLOBAL_MIN_TEMP && max === GLOBAL_MAX_TEMP)) {
-        // Wenn auf globale Grenzen zurückgesetzt -> Filter entfernen
-        // Nur entfernen, wenn vorher ein Filter aktiv war, um unnötige Updates zu vermeiden
-        if (filter.temperatur) {
+      if (min === GLOBAL_MIN_TEMP && max === GLOBAL_MAX_TEMP) {
+        if (filter.temperatur) { // Nur entfernen, wenn vorher ein Filter aktiv war
             setFilter(prev => {
                 const { temperatur, ...rest } = prev;
                 return rest;
             });
         }
       } else {
-        // Wenn von globalen Grenzen abweichend -> Filter setzen/aktualisieren
         setFilter(prev => ({ ...prev, temperatur: { min, max } }));
       }
     }
@@ -195,10 +193,30 @@ const FilterBar: React.FC<FilterBarProps> = ({ filter, setFilter, options, disab
       const { temperatur, ...rest } = prev;
       return rest;
     });
-    setIsTempAccordionOpen(false); // Optional: Akkordeon schließen beim Reset
+    setIsTempAccordionOpen(false);
   };
   const isTempFilterActive = filter.temperatur && (filter.temperatur.min !== GLOBAL_MIN_TEMP || filter.temperatur.max !== GLOBAL_MAX_TEMP);
-  
+
+  // Styling-Objekte für den Slider
+  const handleStyle = {
+    borderColor: '#2563EB', // Tailwind blue-600
+    backgroundColor: 'white',
+    borderWidth: 2,
+    width: 20, // Größerer Anfasser
+    height: 20, // Größerer Anfasser
+    marginTop: -8, // Vertikal zentrieren ( (HandleHöhe - TrackHöhe) / 2 )
+    opacity: 1,
+    boxShadow: '0 2px 4px rgba(0,0,0,0.1)', // Leichter Schatten für 3D-Effekt
+  };
+  const trackStyle = {
+    backgroundColor: '#3B82F6', // Tailwind blue-500
+    height: 6, // Etwas dickerer Track
+  };
+  const railStyle = {
+    backgroundColor: '#D1D5DB', // Tailwind gray-300
+    height: 6,
+  };  
+
   return (
     <div className="bg-gray-100 p-4 md:p-6 rounded-xl shadow-lg">
       <div className="flex justify-between items-center mb-4 md:mb-6">
@@ -288,7 +306,7 @@ const FilterBar: React.FC<FilterBarProps> = ({ filter, setFilter, options, disab
                 leaveFrom="opacity-100 translate-y-0"
                 leaveTo="opacity-0 -translate-y-1"
             >
-                <div className="px-6 pt-4 pb-6 border border-t-0 border-gray-200 rounded-b-lg shadow-sm bg-white">
+                <div className="px-4 sm:px-6 pt-4 pb-6 border border-t-0 border-gray-200 rounded-b-lg shadow-sm bg-white"> {/* Mehr Padding für den Slider */}
                     {isTempFilterActive && (
                         <button
                             type="button"
@@ -300,26 +318,26 @@ const FilterBar: React.FC<FilterBarProps> = ({ filter, setFilter, options, disab
                             Temperaturfilter zurücksetzen
                         </button>
                     )}
-                    {/* @ts-ignore */}
-                    <Slider
-                        range
-                        min={GLOBAL_MIN_TEMP}
-                        max={GLOBAL_MAX_TEMP}
-                        step={TEMP_STEP}
-                        value={tempRange}
-                        onChange={handleTemperatureChange}
-                        onChangeComplete={handleTemperatureAfterChange} // Geändert von onAfterChange
-                        allowCross={false}
-                        disabled={disabled}
-                        className="mb-2 rc-slider-tailwind" // Eigene Klasse für potenzielles Override-Styling
-                        handleStyle={[
-                            { borderColor: '#3B82F6', backgroundColor: 'white', borderWidth: 2, height: 18, width: 18, marginTop: -7, opacity: 1, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' },
-                            { borderColor: '#3B82F6', backgroundColor: 'white', borderWidth: 2, height: 18, width: 18, marginTop: -7, opacity: 1, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' },
-                        ]}
-                        trackStyle={[{ backgroundColor: '#3B82F6', height: 6 }]} // Etwas dicker für bessere Klickbarkeit
-                        railStyle={{ backgroundColor: '#E5E7EB', height: 6 }}
-                    />
-                    <div className="flex justify-between text-xs text-gray-600 mt-2">
+                    {/* Der Slider benötigt etwas horizontalen Platz für die Anfasser */}
+                    <div className="px-2 pt-2"> {/* Zusätzliches Padding um den Slider */}
+                        {/* @ts-ignore rc-slider hat manchmal Typ-Probleme mit 'range', obwohl es funktioniert */}
+                        <Slider
+                            range // Wichtig für zwei Anfasser
+                            min={GLOBAL_MIN_TEMP}
+                            max={GLOBAL_MAX_TEMP}
+                            step={TEMP_STEP}
+                            value={tempRange}
+                            onChange={handleTemperatureChange}
+                            onChangeComplete={handleTemperatureAfterChange} // Oder onAfterChange
+                            allowCross={false}
+                            disabled={disabled}
+                            className="mb-3" // Etwas Abstand nach unten
+                            handleStyle={[handleStyle, handleStyle]} // Style für beide Anfasser
+                            trackStyle={[trackStyle]} // Style für den ausgewählten Bereich
+                            railStyle={railStyle} // Style für den Rest der Schiene
+                        />
+                    </div>
+                    <div className="flex justify-between text-xs text-gray-600 mt-1 px-1"> {/* Weniger Padding hier, da Slider schon Padding hat */}
                         <span>{tempRange[0]}°C</span>
                         <span>{tempRange[1]}°C</span>
                     </div>
