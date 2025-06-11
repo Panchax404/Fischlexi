@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import React from 'react';
 import Link from 'next/link'; // Importiere Link
+//import './styles/rc-slider-overrides.css'; 
 
 export const metadata: Metadata = {
   title: 'Fischlexikon',
