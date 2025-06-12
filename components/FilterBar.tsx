@@ -12,30 +12,36 @@ import '../src/app/styles/rc-slider-overrides.css';
 type FilterBarProps = {
   filter: FilterState;
   setFilter: (f: FilterState | ((prevState: FilterState) => FilterState)) => void;
-  options: {
+  options: { // options.phWert wird hier nicht direkt gebraucht, aber für Konsistenz
     haltung: string[];
     ernahrung: string[];
-    temperatur: string[]; // Bleibt als Select oder wird auch ein Accordion für Bereiche
+    temperatur: string[];
     schwimmhoehe: string[];
     herkunft: string[];
+    phWert?: string[]; // Platzhalter, falls du später feste Bereiche anbieten willst
   };
   disabled?: boolean;
 };
 
+type CheckboxFilterKeys = keyof Omit<FilterState, 'temperatur' | 'phWert'>;
 // Komponente für eine einzelne aufklappbare Filtersektion
 interface AccordionFilterSectionProps {
   title: string;
-  filterKey: keyof Omit<FilterState, 'temperatur'>; // Keys für Checkbox-Filter
+  filterKey: CheckboxFilterKeys;
   options: string[];
   selectedValues: string[] | undefined;
-  onCheckboxChange: (filterKey: keyof Omit<FilterState, 'temperatur'>, value: string) => void;
-  onResetFilter: (filterKey: keyof Omit<FilterState, 'temperatur'>) => void;
+  onCheckboxChange: (filterKey: CheckboxFilterKeys, value: string) => void;
+  onResetFilter: (filterKey: CheckboxFilterKeys) => void;
   disabled?: boolean;
 }
 
 const GLOBAL_MIN_TEMP = 0;  // Globale Untergrenze für den Slider (z.B. 0°C)
 const GLOBAL_MAX_TEMP = 40; // Globale Obergrenze für den Slider (z.B. 40°C)
 const TEMP_STEP = 1;        // Schrittweite des Sliders (z.B. 1°C)
+
+const GLOBAL_MIN_PH = 0.0;
+const GLOBAL_MAX_PH = 14.0;
+const PH_STEP = 0.1; // Kleinere Schritte für pH
 
 const AccordionFilterSection: React.FC<AccordionFilterSectionProps> = ({
   title,
@@ -113,34 +119,49 @@ const AccordionFilterSection: React.FC<AccordionFilterSectionProps> = ({
 
 
 const FilterBar: React.FC<FilterBarProps> = ({ filter, setFilter, options, disabled }) => {
+  // States für Temperatur
   const initialTempMin = filter.temperatur?.min ?? GLOBAL_MIN_TEMP;
   const initialTempMax = filter.temperatur?.max ?? GLOBAL_MAX_TEMP;
-
   const [tempRange, setTempRange] = useState<[number, number]>([initialTempMin, initialTempMax]);
-  const [isTempAccordionOpen, setIsTempAccordionOpen] = useState(false);
-
-  // State für das einzelne Temperatur-Input-Feld
+  const [isTempAccordionOpen, setIsTempAccordionOpen] = useState(false); // State für Temperatur-Akkordeon
   const [singleTempInput, setSingleTempInput] = useState<string>('');
+
+  // States für pH-Wert
+  const initialPhMin = filter.phWert?.min ?? GLOBAL_MIN_PH;
+  const initialPhMax = filter.phWert?.max ?? GLOBAL_MAX_PH;
+  const [phRange, setPhRange] = useState<[number, number]>([initialPhMin, initialPhMax]);
+  const [isPhAccordionOpen, setIsPhAccordionOpen] = useState(false); // EIGENER State für pH-Akkordeon
+  const [singlePhInput, setSinglePhInput] = useState<string>('');
 
   useEffect(() => {
     const globalMin = filter.temperatur?.min ?? GLOBAL_MIN_TEMP;
     const globalMax = filter.temperatur?.max ?? GLOBAL_MAX_TEMP;
-
     if (globalMin !== tempRange[0] || globalMax !== tempRange[1]) {
       setTempRange([globalMin, globalMax]);
     }
-    // Wenn ein exakter Filter (min === max) gesetzt ist, zeige diesen im Input-Feld
     if (filter.temperatur && filter.temperatur.min === filter.temperatur.max) {
-        if (String(filter.temperatur.min) !== singleTempInput) {
-            setSingleTempInput(String(filter.temperatur.min));
-        }
-    } else if (!filter.temperatur && singleTempInput !== '') { // Wenn Filter entfernt wurde, leere Input
+        if (String(filter.temperatur.min) !== singleTempInput) setSingleTempInput(String(filter.temperatur.min));
+    } else if (!filter.temperatur && singleTempInput !== '') {
         setSingleTempInput('');
     }
+  }, [filter.temperatur]); // tempRange und singleTempInput hier nicht als Abhängigkeit!
 
-  }, [filter.temperatur]);
+  // NEUER Effekt für pH-Synchronisation
+  useEffect(() => {
+    const globalMin = filter.phWert?.min ?? GLOBAL_MIN_PH;
+    const globalMax = filter.phWert?.max ?? GLOBAL_MAX_PH;
+    if (globalMin !== phRange[0] || globalMax !== phRange[1]) {
+      setPhRange([globalMin, globalMax]);
+    }
+    if (filter.phWert && filter.phWert.min === filter.phWert.max) {
+        if (String(filter.phWert.min) !== singlePhInput) setSinglePhInput(String(filter.phWert.min));
+    } else if (!filter.phWert && singlePhInput !== '') {
+        setSinglePhInput('');
+    }
+  }, [filter.phWert]); // phRange und singlePhInput hier nicht als Abhängigkeit!
 
-  const handleCheckboxChange = (filterKey: keyof Omit<FilterState, 'temperatur'>, value: string) => {
+
+  const handleCheckboxChange = (filterKey: CheckboxFilterKeys, value: string) => {
     setFilter(prevFilter => {
       const currentValues = (prevFilter[filterKey] as string[] | undefined) || [];
       const newValues = currentValues.includes(value)
@@ -153,7 +174,7 @@ const FilterBar: React.FC<FilterBarProps> = ({ filter, setFilter, options, disab
     });
   };
 
-  const handleResetFilter = (filterKey: keyof Omit<FilterState, 'temperatur'>) => {
+  const handleResetFilter = (filterKey: CheckboxFilterKeys) => {
     setFilter(prevFilter => {
       const updatedFilter = { ...prevFilter };
       delete updatedFilter[filterKey];
@@ -175,69 +196,81 @@ const FilterBar: React.FC<FilterBarProps> = ({ filter, setFilter, options, disab
   const handleTemperatureRangeChange = (value: number | number[]) => {
     if (Array.isArray(value) && value.length === 2) {
       setTempRange([value[0], value[1]]);
-      // Wenn der Slider bewegt wird und einen Bereich darstellt, leere das Single-Input-Feld,
-      // da es nur für einen exakten Wert gedacht ist.
-      if (value[0] !== value[1] && singleTempInput !== '') {
-        setSingleTempInput('');
-      }
+      if (value[0] !== value[1] && singleTempInput !== '') setSingleTempInput('');
     }
   };
 
   const handleTemperatureRangeChangeComplete = (value: number | number[]) => {
-    if (Array.isArray(value) && value.length === 2) {
-      const [min, max] = value;
-      updateGlobalTemperatureFilter(min, max);
-    }
+    if (Array.isArray(value) && value.length === 2) updateGlobalTemperatureFilter(value[0], value[1]);
   };
   const updateGlobalTemperatureFilter = (min: number, max: number) => {
-    // Wenn min und max gleich sind, und der singleTempInput diesen Wert nicht schon reflektiert,
-    // dann setze den singleTempInput.
-    if (min === max && String(min) !== singleTempInput) {
-        setSingleTempInput(String(min));
-    }
-
+    if (min === max && String(min) !== singleTempInput) setSingleTempInput(String(min));
     if (min === GLOBAL_MIN_TEMP && max === GLOBAL_MAX_TEMP) {
-      if (filter.temperatur) {
-        setFilter(prev => { const { temperatur, ...rest } = prev; return rest; });
-      }
+      if (filter.temperatur) setFilter(prev => { const { temperatur, ...rest } = prev; return rest; });
     } else {
       setFilter(prev => ({ ...prev, temperatur: { min, max } }));
     }
   };
 
-  // Handler für Änderungen im einzelnen Input-Feld
-  const handleSingleTempInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSingleTempInput(e.target.value);
-  };
-
-  // Anwendung des Werts aus dem einzelnen Input-Feld
+  const handleSingleTempInputChange = (e: React.ChangeEvent<HTMLInputElement>) => setSingleTempInput(e.target.value);
   const applySingleTempInput = () => {
-    let tempValue = parseInt(singleTempInput, 10);
-
-    if (isNaN(tempValue)) { // Wenn ungültig, Filter ggf. zurücksetzen oder nichts tun
-      if (singleTempInput === '' && filter.temperatur) { // Wenn Feld geleert wurde, Filter entfernen
-        resetTemperatureFilter();
-      }
+    let tempValue = parseFloat(singleTempInput); // parseFloat für pH
+    if (isNaN(tempValue)) {
+      if (singleTempInput === '' && filter.temperatur) resetTemperatureFilter();
       return;
     }
-
     tempValue = Math.max(GLOBAL_MIN_TEMP, Math.min(tempValue, GLOBAL_MAX_TEMP));
-
-    setTempRange([tempValue, tempValue]); // Slider auf exakten Wert setzen
-    setSingleTempInput(String(tempValue)); // Normalisiere Input-Anzeige
-    updateGlobalTemperatureFilter(tempValue, tempValue); // Globalen Filter auf exakten Wert
+    setTempRange([tempValue, tempValue]);
+    setSingleTempInput(String(tempValue));
+    updateGlobalTemperatureFilter(tempValue, tempValue);
   };
 
   const resetTemperatureFilter = () => {
     setTempRange([GLOBAL_MIN_TEMP, GLOBAL_MAX_TEMP]);
-    setSingleTempInput(''); // Leere das einzelne Input-Feld
-    setFilter(prev => {
-      const { temperatur, ...rest } = prev;
-      return rest;
-    });
+    setSingleTempInput('');
+    setFilter(prev => { const { temperatur, ...rest } = prev; return rest; });
   };
-
   const isTempFilterActive = filter.temperatur && (filter.temperatur.min !== GLOBAL_MIN_TEMP || filter.temperatur.max !== GLOBAL_MAX_TEMP);
+
+  // NEUE pH-Handler (analog zu Temperatur)
+  const handlePhRangeChange = (value: number | number[]) => {
+    if (Array.isArray(value) && value.length === 2) {
+      setPhRange([value[0], value[1]]);
+      if (value[0] !== value[1] && singlePhInput !== '') setSinglePhInput('');
+    }
+  };
+  const handlePhRangeChangeComplete = (value: number | number[]) => {
+    if (Array.isArray(value) && value.length === 2) updateGlobalPhFilter(value[0], value[1]);
+  };
+  const updateGlobalPhFilter = (min: number, max: number) => {
+    if (min === max && parseFloat(singlePhInput).toFixed(1) !== min.toFixed(1)) setSinglePhInput(min.toFixed(1)); // .toFixed(1) für pH
+    if (min === GLOBAL_MIN_PH && max === GLOBAL_MAX_PH) {
+      if (filter.phWert) setFilter(prev => { const { phWert, ...rest } = prev; return rest; });
+    } else {
+      setFilter(prev => ({ ...prev, phWert: { min, max } }));
+    }
+  };
+  const handleSinglePhInputChange = (e: React.ChangeEvent<HTMLInputElement>) => setSinglePhInput(e.target.value);
+  const applySinglePhInput = () => {
+    let phValue = parseFloat(singlePhInput);
+    if (isNaN(phValue)) {
+      if (singlePhInput === '' && filter.phWert) resetPhFilter();
+      return;
+    }
+    phValue = Math.max(GLOBAL_MIN_PH, Math.min(phValue, GLOBAL_MAX_PH));
+    // Runde auf eine Nachkommastelle für pH
+    phValue = parseFloat(phValue.toFixed(1));
+
+    setPhRange([phValue, phValue]);
+    setSinglePhInput(phValue.toFixed(1));
+    updateGlobalPhFilter(phValue, phValue);
+  };
+  const resetPhFilter = () => {
+    setPhRange([GLOBAL_MIN_PH, GLOBAL_MAX_PH]);
+    setSinglePhInput('');
+    setFilter(prev => { const { phWert, ...rest } = prev; return rest; });
+  };
+  const isPhFilterActive = filter.phWert && (filter.phWert.min !== GLOBAL_MIN_PH || filter.phWert.max !== GLOBAL_MAX_PH);
 
   // Verbessertes Styling für den Slider
   const sliderHandleStyle = {
@@ -265,12 +298,13 @@ const FilterBar: React.FC<FilterBarProps> = ({ filter, setFilter, options, disab
     <div className="bg-gray-100 p-4 md:p-6 rounded-xl shadow-lg">
       <div className="flex justify-between items-center mb-4 md:mb-6">
         <h3 className="text-lg md:text-xl font-semibold text-gray-800">Filteroptionen</h3>
-        {(hasActiveMultiFilters || isTempFilterActive) && (
+        {(hasActiveMultiFilters || isTempFilterActive || isPhFilterActive) && ( // isPhFilterActive hinzugefügt
             <button
             type="button"
             onClick={() => {
                 handleResetAllCheckboxFilters();
                 resetTemperatureFilter();
+                resetPhFilter();
             }}
             className="text-xs text-red-600 hover:text-red-800 font-medium flex items-center"
             disabled={disabled}
@@ -421,6 +455,96 @@ const FilterBar: React.FC<FilterBarProps> = ({ filter, setFilter, options, disab
                 </div>
             </Transition>
         </div>
+        {/* NEUER pH-Wert-Filter als Akkordeon */}
+        <div className="w-full">
+            <button
+                type="button"
+                onClick={() => setIsPhAccordionOpen(!isPhAccordionOpen)}
+                disabled={disabled}
+                className={`w-full flex items-center justify-between px-4 py-3 text-left text-sm font-medium text-gray-700 
+                            hover:bg-gray-100 focus:outline-none focus-visible:ring focus-visible:ring-blue-500 focus-visible:ring-opacity-75
+                            transition-colors duration-150
+                            ${isPhAccordionOpen ? 'bg-gray-100 rounded-t-lg' : 'bg-gray-50 rounded-lg shadow-sm hover:shadow-md'}`}
+            >
+                <span>
+                pH-Wert
+                {isPhFilterActive && (
+                    <span className={`ml-2 inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${isPhAccordionOpen ? 'bg-blue-200 text-blue-800' : 'bg-blue-100 text-blue-700'}`}>
+                    {filter.phWert?.min === filter.phWert?.max 
+                        ? `${filter.phWert.min.toFixed(1)}` 
+                        : `${filter.phWert?.min?.toFixed(1) ?? phRange[0].toFixed(1)} - ${filter.phWert?.max?.toFixed(1) ?? phRange[1].toFixed(1)}`}
+                    </span>
+                )}
+                </span>
+                <ChevronDownIcon className={`w-5 h-5 text-gray-500 transform transition-transform duration-200 ${isPhAccordionOpen ? 'rotate-180' : ''}`} />
+            </button>
+            <Transition
+                as={Fragment}
+                show={isPhAccordionOpen}
+                enter="transition ease-out duration-200"
+                enterFrom="opacity-0 -translate-y-1"
+                enterTo="opacity-100 translate-y-0"
+                leave="transition ease-in duration-150"
+                leaveFrom="opacity-100 translate-y-0"
+                leaveTo="opacity-0 -translate-y-1"
+            >
+                <div className="px-4 sm:px-6 pt-4 pb-6 border border-t-0 border-gray-200 rounded-b-lg shadow-sm bg-white">
+                    {isPhFilterActive && (
+                        <button type="button" onClick={resetPhFilter} className="mb-4 text-xs text-red-600 hover:text-red-800 flex items-center" disabled={disabled}>
+                            <XCircleIcon className="w-4 h-4 mr-1" />
+                            pH-Filter zurücksetzen
+                        </button>
+                    )}
+                    <div className="mb-4">
+                        <label htmlFor="single-ph-input" className="block text-xs font-medium text-gray-700 mb-1">
+                            Exakter pH-Wert (oder Bereich mit Slider):
+                        </label>
+                        <div className="flex items-center">
+                            <input
+                                type="number"
+                                id="single-ph-input"
+                                aria-label="Exakter pH-Wert"
+                                placeholder={`z.B. ${((GLOBAL_MIN_PH + GLOBAL_MAX_PH) / 2).toFixed(1)}`}
+                                value={singlePhInput}
+                                onChange={handleSinglePhInputChange}
+                                onBlur={applySinglePhInput}
+                                onKeyDown={(e) => e.key === 'Enter' && applySinglePhInput()}
+                                disabled={disabled}
+                                className="w-full px-2 py-1.5 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-xs"
+                                step={PH_STEP} // Erlaube Dezimalstellen
+                                min={GLOBAL_MIN_PH}
+                                max={GLOBAL_MAX_PH}
+                            />
+                        </div>
+                    </div>
+                    <div className="px-2 pt-2">
+                        <div className="flex justify-between text-xs text-gray-600 mb-1">
+                            <span>Min: {phRange[0].toFixed(1)}</span>
+                            <span>Max: {phRange[1].toFixed(1)}</span>
+                        </div>
+                        {/* @ts-ignore */}
+                        <Slider
+                            range
+                            min={GLOBAL_MIN_PH}
+                            max={GLOBAL_MAX_PH}
+                            step={PH_STEP}
+                            value={phRange}
+                            onChange={handlePhRangeChange}
+                            onChangeComplete={handlePhRangeChangeComplete}
+                            allowCross={false}
+                            disabled={disabled}
+                            className="mb-3 custom-rc-slider"
+                            // @ts-ignore
+                            handleStyle={[sliderHandleStyle, sliderHandleStyle]}
+                            // @ts-ignore
+                            trackStyle={[sliderTrackStyle]}
+                            // @ts-ignore
+                            railStyle={sliderRailStyle}
+                        />
+                    </div>
+                </div>
+            </Transition>
+        </div> {/* Ende pH-Wert Akkordeon */}
       </div>
     </div>
   );

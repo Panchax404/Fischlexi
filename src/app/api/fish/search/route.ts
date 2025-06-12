@@ -18,6 +18,9 @@ export async function GET(request: NextRequest) {
     const tempMinParam = searchParams.get('temp_min');
     const tempMaxParam = searchParams.get('temp_max');
 
+    const phMinParam = searchParams.get('ph_min');
+    const phMaxParam = searchParams.get('ph_max');
+
     const parseMultiSelectParam = (paramName: string): string[] | undefined => {
       const values = searchParams.getAll(paramName);
       return values.length > 0 ? values.map(s => s.trim()).filter(Boolean) : undefined;
@@ -88,10 +91,18 @@ export async function GET(request: NextRequest) {
             query = query.lte('water_temperature_min_c', filterMax); // Fische, deren Min-Temp <= Filter-Max ist
         }
     }
-    // Die vorherige Logik mit `temperaturFilter` (String "22-26°C") wurde entfernt,
-    // da `temp_min` und `temp_max` vom Range Slider kommen.
-
-    // Sortierung und Paginierung jetzt anwenden
+    if (phMinParam && phMaxParam) {
+        const filterMin = parseFloat(phMinParam);
+        const filterMax = parseFloat(phMaxParam);
+        // Finde Fische, deren pH-Bereich [fish.water_ph_min, fish.water_ph_max]
+        // sich mit dem ausgewählten Bereich [filterMin, filterMax] überlappt.
+        query = query.lte('water_ph_min', filterMax) // Fisch min pH <= Filter max pH
+                     .gte('water_ph_max', filterMin); // Fisch max pH >= Filter min pH
+    } else if (phMinParam) { // Nur Mindest-pH gefiltert
+        query = query.gte('water_ph_max', parseFloat(phMinParam));
+    } else if (phMaxParam) { // Nur Maximal-pH gefiltert
+        query = query.lte('water_ph_min', parseFloat(phMaxParam));
+    }
     query = query.order('name', { ascending: true }).range(offset, offset + limit - 1);
 
     const { data: fishListFromDb, error: searchError, count: totalResults } = await query;

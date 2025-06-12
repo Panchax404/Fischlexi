@@ -43,6 +43,8 @@ const RESULTS_PER_PAGE = 12;
 const GLOBAL_MIN_TEMP = 0;
 const GLOBAL_MAX_TEMP = 40;
 // const TEMP_STEP = 1; // Wird in FilterBar.tsx verwendet, hier nicht direkt nötig
+const GLOBAL_MIN_PH = 0.0; // Wiederholung zur Klarheit
+const GLOBAL_MAX_PH = 14.0;
 
 function LoadingSpinner() {
     return (
@@ -61,8 +63,7 @@ const getArrayFromRepeatedParams = (searchParams: URLSearchParams, paramName: st
 
 // Hilfsfunktion zum Erstellen eines FilterState-Objekts aus searchParams
 const buildFilterStateFromParams = (searchParams: URLSearchParams): FilterState => {
-  const filters: Partial<FilterState> = {}; // Beginne mit Partial, um optionale Keys zu erlauben
-
+  const filters: Partial<FilterState> = {};
   filters.haltung = getArrayFromRepeatedParams(searchParams, 'haltung');
   filters.ernahrung = getArrayFromRepeatedParams(searchParams, 'ernahrung');
   filters.schwimmhoehe = getArrayFromRepeatedParams(searchParams, 'schwimmhoehe');
@@ -84,8 +85,22 @@ const buildFilterStateFromParams = (searchParams: URLSearchParams): FilterState 
     const max = parseInt(tempMaxParam, 10);
     if(!isNaN(max)) filters.temperatur = { min: GLOBAL_MIN_TEMP, max }; // Min auf global setzen
   }
-  // Wenn keine Temperaturparameter gesetzt sind, bleibt filters.temperatur undefined
-
+  // NEU für pH
+  const phMinParam = searchParams.get('ph_min');
+  const phMaxParam = searchParams.get('ph_max');
+  if (phMinParam !== null && phMaxParam !== null) {
+    const min = parseFloat(phMinParam); // parseFloat für pH
+    const max = parseFloat(phMaxParam);
+    if (!isNaN(min) && !isNaN(max)) {
+      filters.phWert = { min, max };
+    }
+  } else if (phMinParam !== null) {
+    const min = parseFloat(phMinParam);
+    if(!isNaN(min)) filters.phWert = { min, max: GLOBAL_MAX_PH };
+  } else if (phMaxParam !== null) {
+    const max = parseFloat(phMaxParam);
+    if(!isNaN(max)) filters.phWert = { min: GLOBAL_MIN_PH, max };
+  }
   // Entferne undefined Keys für einen sauberen State
   (Object.keys(filters) as Array<keyof FilterState>).forEach(key => {
     if (filters[key] === undefined) {
@@ -146,24 +161,26 @@ function FishSearchPageContent() {
     (Object.keys(currentFilters) as Array<keyof FilterState>).forEach(key => {
       const value = currentFilters[key];
       if (value !== undefined) {
-        if (key === 'temperatur') {
-          const tempValue = value as { min: number; max: number }; // Type assertion
-          // Nur hinzufügen, wenn es nicht den globalen Grenzen entspricht
-          if (tempValue.min !== GLOBAL_MIN_TEMP) {
-            paramsForUrl.set("temp_min", String(tempValue.min));
+        if (currentFilters.temperatur) {
+          if (currentFilters.temperatur.min !== GLOBAL_MIN_TEMP) {
+            paramsForUrl.set("temp_min", String(currentFilters.temperatur.min));
           }
-          if (tempValue.max !== GLOBAL_MAX_TEMP) {
-            paramsForUrl.set("temp_max", String(tempValue.max));
+          if (currentFilters.temperatur.max !== GLOBAL_MAX_TEMP) {
+            paramsForUrl.set("temp_max", String(currentFilters.temperatur.max));
           }
-        } else if (Array.isArray(value)) {
+        }else if (Array.isArray(value)) {
           if (value.length > 0) {
             value.forEach(v => paramsForUrl.append(key, v)); // Wiederholte Parameter
           }
         }
-        // String-Werte für Filter (falls es welche gäbe außer Temperatur)
-        // else if (typeof value === 'string' && value.trim()){
-        //   paramsForUrl.set(key, value);
-        // }
+        if (currentFilters.phWert) {
+          if (currentFilters.phWert.min !== GLOBAL_MIN_PH) {
+            paramsForUrl.set("ph_min", currentFilters.phWert.min.toFixed(1)); // .toFixed(1) für Konsistenz
+          }
+          if (currentFilters.phWert.max !== GLOBAL_MAX_PH) {
+            paramsForUrl.set("ph_max", currentFilters.phWert.max.toFixed(1));
+          }
+        }
       }
     });
 
@@ -229,6 +246,14 @@ function FishSearchPageContent() {
       const apiQueryString = buildUrlQueryString(qFromUrl, filtersFromUrl, pageFromUrl);
       const finalApiParams = new URLSearchParams(apiQueryString);
       finalApiParams.set('limit', String(RESULTS_PER_PAGE));
+      if (filtersFromUrl.phWert) {
+        if (filtersFromUrl.phWert.min !== GLOBAL_MIN_PH) {
+          finalApiParams.set("ph_min", filtersFromUrl.phWert.min.toFixed(1));
+        }
+        if (filtersFromUrl.phWert.max !== GLOBAL_MAX_PH) {
+          finalApiParams.set("ph_max", filtersFromUrl.phWert.max.toFixed(1));
+        }
+    }
       // page ist schon in apiQueryString durch buildUrlQueryString, falls > 1
 
       try {
