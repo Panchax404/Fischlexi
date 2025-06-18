@@ -58,16 +58,20 @@ export async function GET(request: NextRequest) {
 
     // Filter für Many-to-Many Relationen
     if (haltungValues && haltungValues.length > 0) {
-      query = query.filter('fish_keeping_types.keeping_type.name', 'in', `(${haltungValues.join(',')})`);
+      const quotedHaltungValues = haltungValues.map(val => `"${val.replace(/"/g, '""')}"`); // Doppelte Anführungszeichen im Wert escapen
+      query = query.filter('fish_keeping_types.keeping_type.name', 'in', `(${quotedHaltungValues.join(',')})`);
     }
     if (ernahrungValues && ernahrungValues.length > 0) {
-      query = query.filter('fish_feeding_categories_map.feeding_category.name', 'in', `(${ernahrungValues.join(',')})`);
+      const quotedErnahrungValues = ernahrungValues.map(val => `"${val.replace(/"/g, '""')}"`);
+      query = query.filter('fish_feeding_categories_map.feeding_category.name', 'in', `(${quotedErnahrungValues.join(',')})`);
     }
     if (herkunftValues && herkunftValues.length > 0) {
-      query = query.filter('fish_origins.origin.name', 'in', `(${herkunftValues.join(',')})`);
+      const quotedHerkunftValues = herkunftValues.map(val => `"${val.replace(/"/g, '""')}"`);
+      query = query.filter('fish_origins.origin.name', 'in', `(${quotedHerkunftValues.join(',')})`);
     }
     if (schwimmhoeheValues && schwimmhoeheValues.length > 0) {
-      query = query.filter('fish_swimming_zones.swimming_zone.zone_name', 'in', `(${schwimmhoeheValues.join(',')})`);
+      const quotedSchwimmhoeheValues = schwimmhoeheValues.map(val => `"${val.replace(/"/g, '""')}"`);
+      query = query.filter('fish_swimming_zones.swimming_zone.zone_name', 'in', `(${quotedSchwimmhoeheValues.join(',')})`);
     }
 
     // Temperaturfilter basierend auf temp_min und temp_max (von Range Slider)
@@ -103,12 +107,15 @@ export async function GET(request: NextRequest) {
     } else if (phMaxParam) { // Nur Maximal-pH gefiltert
         query = query.lte('water_ph_min', parseFloat(phMaxParam));
     }
+
     query = query.order('name', { ascending: true }).range(offset, offset + limit - 1);
 
     const { data: fishListFromDb, error: searchError, count: totalResults } = await query;
 
     if (searchError) {
       console.error('[API /search] Supabase search error:', searchError);
+      console.error('Fehlerdetails:', searchError.details); // Mehr Details loggen
+      console.error('Fehlerhinweis:', searchError.hint);   // Mehr Details loggen
       throw searchError;
     }
 
