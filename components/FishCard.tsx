@@ -1,59 +1,164 @@
 'use client';
 
 import React from 'react';
-import { Fish } from '../lib/types'; // Pfad zu deinem Fish-Typ anpassen
+import { Fish, FilterState } from '../lib/types';
 import Link from 'next/link';
-import { InformationCircleIcon } from '@heroicons/react/24/outline'; // Optionales Icon
+import { motion } from 'framer-motion';
+import { ArrowRightIcon, MapPinIcon, BeakerIcon } from '@heroicons/react/24/outline'; // BeakerIcon for parameters
 
 type FishCardProps = {
   fish: Fish;
-  searchQueryFromCaller?: string; // Neuer Prop
+  activeFilters?: FilterState;
+  searchQueryFromCaller?: string;
 };
 
-// Hilfsfunktion zum Kürzen von Array-basierten Infos für die Karte
-const getShortInfo = (items: string[], maxLength: number = 2): string => {
-  if (items.length === 0) return 'N/A';
-  if (items.length <= maxLength) return items.join(', ');
-  return `${items.slice(0, maxLength).join(', ')}, ...`;
+// Helper: safe join
+const safeJoin = (arr: string[] | undefined, limit = 2) => {
+  if (!arr || arr.length === 0) return 'Unbekannt';
+  if (arr.length <= limit) return arr.join(', ');
+  return arr.slice(0, limit).join(', ') + '...';
 };
 
-const FishCard: React.FC<FishCardProps> = ({ fish, searchQueryFromCaller }) => {
+const FishCard: React.FC<FishCardProps> = ({ fish, activeFilters, searchQueryFromCaller }) => {
   const slug = fish.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
   const detailPageHref = `/fish/${slug}${searchQueryFromCaller ? `?${searchQueryFromCaller}` : ''}`;
 
-  return (
-     <Link href={detailPageHref} className="block group h-full">
-      <div className="bg-white rounded-lg shadow-lg overflow-hidden h-full flex flex-col group-hover:shadow-xl transition-shadow duration-300">
-        {/* Optional: Bild des Fisches - für mehr Platz auf der Karte ggf. weglassen oder kleiner machen */}
-        {/* <img src={`https://placeholder.com/300x150?text=${encodeURIComponent(fish.name)}`} alt={fish.name} className="w-full h-32 sm:h-40 object-cover" /> */}
-        
-        <div className="p-4 sm:p-5 flex flex-col flex-grow">
-          <h3 className="text-lg font-semibold text-blue-600 group-hover:text-blue-700 mb-1 transition-colors truncate">
-            {fish.name}
-          </h3>
-          <p className="text-xs text-gray-400 italic mb-3 truncate">{fish.latin_name}</p>
+  // Helper to determine if a filter is active
+  const isFilterActive = (key: keyof FilterState) => {
+    return activeFilters && activeFilters[key] !== undefined;
+  };
 
-          {/* Stichpunkte anstelle der Beschreibung */}
-          <div className="space-y-1.5 text-xs text-gray-600 mb-4 flex-grow">
-          {/* <p><strong>Habitat:</strong> <span className="font-normal">{fish.habitat || 'N/A'}</span></p> */}
-            <p><strong>Herkunft:</strong> <span className="font-normal">{(Array.isArray(fish.herkunft) && fish.herkunft.length > 0) ? fish.herkunft.join(', ') : 'N/A'}</span></p>
-            <p><strong>Größe:</strong> <span className="font-normal">{fish.size || 'N/A'}</span></p>
-            <p><strong>Haltung:</strong> <span className="font-normal">{(Array.isArray(fish.haltung) && fish.haltung.length > 0) ? fish.haltung.join(', ') : 'N/A'}</span></p>
-            <p><strong>Ernährung:</strong> <span className="font-normal">{(Array.isArray(fish.ernahrung) && fish.ernahrung.length > 0) ? fish.ernahrung.join(', ') : 'N/A'}</span></p>
-            <p><strong>Temperatur:</strong> <span className="font-normal">{fish.temperatur || 'N/A'}</span></p>
-            <p><strong>Schwimmhöhe:</strong> <span className="font-normal">{(Array.isArray(fish.schwimmhoehe) && fish.schwimmhoehe.length > 0) ? fish.schwimmhoehe.join(', ') : 'N/A'}</span></p>
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      whileInView={{ opacity: 1, scale: 1 }}
+      viewport={{ once: true }}
+      transition={{ duration: 0.3 }}
+      whileHover={{ y: -5 }}
+    >
+      <Link href={detailPageHref} className="block group h-full">
+        <div className="h-full flex flex-col bg-card border border-border rounded-2xl overflow-hidden shadow-sm hover:shadow-xl hover:shadow-primary/10 transition-all duration-300 relative">
+
+          <div className="h-44 bg-muted relative overflow-hidden group-hover:scale-105 transition-transform duration-500">
+            {fish.image_url_main ? (
+              <img src={fish.image_url_main} alt={fish.name} className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-secondary text-secondary-foreground text-4xl">
+                🐠
+              </div>
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+            {/* Contextual Badges (e.g. Origin matches) could go here */}
           </div>
 
-          {/* "Mehr Infos klicken" Text */}
-          <div className="mt-auto pt-2 border-t border-gray-100 text-center">
-            <p className="text-xs text-blue-500 group-hover:text-blue-600 font-medium flex items-center justify-center">
-              <InformationCircleIcon className="h-4 w-4 mr-1" /> {/* Optionales Icon */}
-              Mehr Infos & Details
-            </p>
+          <div className="p-5 flex flex-col flex-grow">
+            <div className="mb-3">
+              <h3 className="text-xl font-bold text-foreground group-hover:text-primary transition-colors line-clamp-1" title={fish.name}>
+                {fish.name}
+              </h3>
+              <p className="text-sm text-muted-foreground italic font-medium line-clamp-1">{fish.latin_name}</p>
+            </div>
+
+            {/* Badges/Tags - Clean Look with Conditional Highlights */}
+            <div className="flex flex-wrap gap-2 mb-4">
+              {/* Size Badge */}
+              {fish.size && (
+                <span className="px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200 border border-blue-200 dark:border-blue-900">
+                  📏 {fish.size}
+                </span>
+              )}
+
+              {/* Temp Badge - Highlight if filtered */}
+              {fish.temperatur && (
+                <span className={`px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider rounded-full border transition-colors
+                  ${isFilterActive('temperatur')
+                    ? 'bg-primary text-primary-foreground border-primary shadow-sm ring-1 ring-primary/50'
+                    : 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-200 border-orange-200 dark:border-orange-900'
+                  }`}>
+                  🌡️ {fish.temperatur}
+                </span>
+              )}
+
+              {/* pH Badge - Highlight if filtered */}
+              {fish.phWert && (
+                <span className={`px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider rounded-full border transition-colors
+                  ${isFilterActive('phWert')
+                    ? 'bg-primary text-primary-foreground border-primary shadow-sm ring-1 ring-primary/50'
+                    : 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-200 border-teal-200 dark:border-teal-900'
+                  }`}>
+                  💧 {fish.phWert}
+                </span>
+              )}
+
+              {/* Hardness Badge - Show only if filtered or available, Highlight if filtered */}
+              {(isFilterActive('hardness') && fish.hardness) && (
+                <span className="px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider rounded-full bg-primary text-primary-foreground border border-primary shadow-sm ring-1 ring-primary/50">
+                  🪨 {fish.hardness}
+                </span>
+              )}
+              {/* Show hardness standard if not filtered? User asked to make filtered values visible. 
+                   If not filtered, maybe we don't show it to keep card clean, OR we show it neutral. 
+                   Let's stick to "If Filtered -> Highlight/Show". If not filtered, maybe hide to save space unless standard logic applies.
+                   For now: Only extra show if filtered.
+               */}
+
+              {/* Aquarium Size - Show if filtered */}
+              {(isFilterActive('liters') && fish.min_tank_size) && (
+                <span className="px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider rounded-full bg-primary text-primary-foreground border border-primary shadow-sm ring-1 ring-primary/50">
+                  🛁 {fish.min_tank_size}
+                </span>
+              )}
+
+              {/* Edge Length - Show if filtered */}
+              {(isFilterActive('length') && fish.min_tank_length) && (
+                <span className="px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider rounded-full bg-primary text-primary-foreground border border-primary shadow-sm ring-1 ring-primary/50">
+                  📏 {fish.min_tank_length}
+                </span>
+              )}
+
+            </div>
+
+            {/* Detailed Info Grid */}
+            <div className="grid grid-cols-2 gap-x-2 gap-y-1 mb-4 text-xs text-muted-foreground">
+              <div className="col-span-2 flex items-start">
+                <MapPinIcon className="w-3 h-3 mr-1 mt-0.5 flex-shrink-0" />
+                <span className={`truncate ${isFilterActive('herkunft') ? 'text-primary font-bold' : ''}`} title={safeJoin(fish.herkunft, 5)}>
+                  {safeJoin(fish.herkunft)}
+                </span>
+              </div>
+              <div className="col-span-2 flex items-start">
+                <span className="mr-1">🍽️</span>
+                <span className={`truncate ${isFilterActive('ernahrung') ? 'text-primary font-bold' : ''}`} title={safeJoin(fish.ernahrung, 5)}>
+                  {safeJoin(fish.ernahrung)}
+                </span>
+              </div>
+              <div className="col-span-2 flex items-start">
+                <span className="mr-1">🏠</span>
+                <span className={`truncate ${isFilterActive('haltung') ? 'text-primary font-bold' : ''}`}>
+                  {safeJoin(fish.haltung)}
+                </span>
+              </div>
+              {isFilterActive('schwimmhoehe') && (
+                <div className="col-span-2 flex items-start">
+                  <span className="mr-1">🌊</span>
+                  <span className="text-primary font-bold truncate">
+                    {safeJoin(fish.schwimmhoehe)}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-auto pt-3 border-t border-border flex justify-between items-center">
+              <span className="text-xs font-semibold text-primary/80 group-hover:text-primary tracking-wide uppercase">Mehr Infos & Details</span>
+              <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors">
+                <ArrowRightIcon className="w-3 h-3" />
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-    </Link>
+      </Link>
+    </motion.div>
   );
 };
 

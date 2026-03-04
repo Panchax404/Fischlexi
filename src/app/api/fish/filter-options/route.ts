@@ -5,54 +5,67 @@ const supabaseAdmin = getSupabaseAdmin();
 
 export async function GET() {
   try {
-    // Haltung (keeping_types)
-    const { data: keepingTypesData, error: keepingTypesError } = await supabaseAdmin
-      .from('keeping_types')
-      .select('name')
-      .order('name', { ascending: true });
-    if (keepingTypesError) throw keepingTypesError;
+    // 1. Parallel Requests starten für Haltung, Ernährung, Herkunft, Schwimmzonen
+    const [
+      keepingTypesRes,
+      feedingCategoriesRes,
+      originsRes,
+      swimmingZonesRes,
+      // Min/Max Queries
+      minTempRes,
+      maxTempRes,
+      minPhRes,
+      maxPhRes
+    ] = await Promise.all([
+      supabaseAdmin.from('keeping_types').select('name').order('name', { ascending: true }),
+      supabaseAdmin.from('feeding_categories').select('name').order('name', { ascending: true }),
+      supabaseAdmin.from('origins').select('name').order('name', { ascending: true }),
+      supabaseAdmin.from('swimming_zones').select('zone_name').order('zone_name', { ascending: true }),
 
-    // Ernährungskategorien (feeding_categories)
-    const { data: feedingCategoriesData, error: feedingCategoriesError } = await supabaseAdmin
-      .from('feeding_categories')
-      .select('name')
-      .order('name', { ascending: true });
-    if (feedingCategoriesError) throw feedingCategoriesError;
+      // Temp Min/Max
+      supabaseAdmin.from('fish').select('water_temperature_min_c').not('water_temperature_min_c', 'is', null).order('water_temperature_min_c', { ascending: true }).limit(1).single(),
+      supabaseAdmin.from('fish').select('water_temperature_max_c').not('water_temperature_max_c', 'is', null).order('water_temperature_max_c', { ascending: false }).limit(1).single(),
 
-    // Wassertemperatur (aus der fish Tabelle - hier wird's komplexer, wir brauchen Min/Max oder definierte Bereiche)
-    // Einfache Variante: Wir definieren feste Bereiche oder lassen es vorerst weg,
-    // da dynamische Bereiche aus Min/Max aller Fische aufwendiger sind.
-    // Fürs Erste: Feste Beispiel-Temperaturbereiche. In der Praxis dynamisch oder besser überdacht.
-    const temperaturOptions = ["18-22°C", "22-26°C", "26-30°C", "Kaltwasser (<18°C)"]; // Beispiel
+      // pH Min/Max
+      supabaseAdmin.from('fish').select('water_ph_min').not('water_ph_min', 'is', null).order('water_ph_min', { ascending: true }).limit(1).single(),
+      supabaseAdmin.from('fish').select('water_ph_max').not('water_ph_max', 'is', null).order('water_ph_max', { ascending: false }).limit(1).single()
+    ]);
 
-    // Herkunft (origins)
-    const { data: originsData, error: originsError } = await supabaseAdmin
-      .from('origins')
-      .select('name')
-      .order('name', { ascending: true });
-    if (originsError) throw originsError;
-
-    // Schwimmzonen (swimming_zones)
-    const { data: swimmingZonesData, error: swimmingZonesError } = await supabaseAdmin
-      .from('swimming_zones')
-      .select('zone_name') // Beachte: Spaltenname ist 'zone_name'
-      .order('zone_name', { ascending: true });
-    if (swimmingZonesError) throw swimmingZonesError;
-
+    // Error Handling
+    if (keepingTypesRes.error) throw keepingTypesRes.error;
+    if (feedingCategoriesRes.error) throw feedingCategoriesRes.error;
+    if (originsRes.error) throw originsRes.error;
+    if (swimmingZonesRes.error) throw swimmingZonesRes.error;
 
     // Daten formatieren
-    const haltung = keepingTypesData?.map(kt => kt.name) || [];
-    const ernahrung = feedingCategoriesData?.map(fc => fc.name) || [];
-    const herkunft = originsData?.map(o => o.name) || [];
-    const schwimmhoehe = swimmingZonesData?.map(sz => sz.zone_name) || [];
+    const haltung = keepingTypesRes.data?.map(kt => kt.name) || [];
+    const ernahrung = feedingCategoriesRes.data?.map(fc => fc.name) || [];
+    const herkunft = originsRes.data?.map(o => o.name) || [];
+    const schwimmhoehe = swimmingZonesRes.data?.map(sz => sz.zone_name) || [];
 
+    // Bounds berechnen mit Fallbacks
+    const bounds = {
+      temperatur: {
+        min: minTempRes.data?.water_temperature_min_c ?? 0,
+        max: maxTempRes.data?.water_temperature_max_c ?? 40
+      },
+      phWert: {
+        min: minPhRes.data?.water_ph_min ?? 0,
+        max: maxPhRes.data?.water_ph_max ?? 14
+      }
+    };
+
+    // Alte "temperatur" optionen für Kompatibilität mit Types (auch wenn wir sie im Frontend vielleicht nicht mehr nutzen)
+    // Wir lassen das Array leer oder geben den Range-String zurück
+    const temperaturOptions = [`${bounds.temperatur.min}-${bounds.temperatur.max}°C`];
 
     return NextResponse.json({
-      haltung: haltung,
-      ernahrung: ernahrung,
-      temperatur: temperaturOptions, // Verwende die festen oder dynamisch generierten Bereiche
-      schwimmhoehe: schwimmhoehe,
-      herkunft: herkunft,
+      haltung,
+      ernahrung,
+      temperatur: temperaturOptions,
+      schwimmhoehe,
+      herkunft,
+      bounds
     });
 
   } catch (error: any) {

@@ -79,13 +79,34 @@ export async function GET(
       fish_swimming_zones: undefined,
 
       // Konvertiere Temperatur und Größe für die Anzeige, falls nötig (oder im Frontend machen)
-      // Beispiel: Erzeuge den String für die Temperatur direkt
+      // Format Helper
       temperatur: (fishData.water_temperature_min_c && fishData.water_temperature_max_c)
         ? `${fishData.water_temperature_min_c}°C - ${fishData.water_temperature_max_c}°C`
         : (fishData.water_temperature_min_c ? `${fishData.water_temperature_min_c}°C` : 'N/A'),
+
       size: (fishData.size_cm_min && fishData.size_cm_max)
         ? `${fishData.size_cm_min} - ${fishData.size_cm_max} cm`
         : (fishData.size_cm_max ? `bis ${fishData.size_cm_max} cm` : 'N/A'),
+
+      phWert: (fishData.water_ph_min && fishData.water_ph_max)
+        ? `${fishData.water_ph_min} - ${fishData.water_ph_max}`
+        : (fishData.water_ph_min ? `ab ${fishData.water_ph_min}` : 'N/A'),
+
+      hardness: (fishData.water_hardness_dh_min && fishData.water_hardness_dh_max)
+        ? `${fishData.water_hardness_dh_min} - ${fishData.water_hardness_dh_max} dH`
+        : (fishData.water_hardness_dh_min ? `ab ${fishData.water_hardness_dh_min} dH` : 'N/A'),
+
+      min_tank_size: fishData.aquarium_min_liters ? `ab ${fishData.aquarium_min_liters} Liter` : 'N/A',
+
+      min_tank_length: fishData.aquarium_min_edge_length_cm ? `ab ${fishData.aquarium_min_edge_length_cm} cm` : 'N/A',
+
+      lifespan: (fishData.lifespan_years_min && fishData.lifespan_years_max)
+        ? `${fishData.lifespan_years_min} - ${fishData.lifespan_years_max} Jahre`
+        : (fishData.lifespan_years_max ? `bis ${fishData.lifespan_years_max} Jahre` : 'N/A'),
+
+      common_names: (fishData.common_other_names && Array.isArray(fishData.common_other_names))
+        ? fishData.common_other_names.join(', ')
+        : undefined,
     };
 
     return NextResponse.json(responseData);

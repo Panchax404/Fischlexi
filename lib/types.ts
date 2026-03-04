@@ -32,6 +32,7 @@ export type Fish = {
   // water_temperature_min_c?: number | null;
   // water_temperature_max_c?: number | null;
 
+  // Felder aus DB Schema
   water_ph_min?: number | null;
   water_ph_max?: number | null;
   water_hardness_dh_min?: number | null;
@@ -40,36 +41,49 @@ export type Fish = {
   aquarium_min_liters?: number | null;
   aquarium_min_edge_length_cm?: number | null;
 
+  // Transformierte Felder für UI
+  phWert?: string; // z.B. "6.0 - 7.5"
+  hardness?: string; // z.B. "5 - 15 dH"
+  min_tank_size?: string; // z.B. "54 Liter"
+  min_tank_length?: string; // z.B. "60 cm"
+  lifespan?: string; // z.B. "3 - 5 Jahre"
+  common_names?: string; // joined string
+
   is_published: boolean;
   author_notes?: string | null;
-  created_at: string; // Timestamps kommen als ISO-Strings
+  created_at: string;
   updated_at: string;
 
   // Felder, die durch Joins von der API gefüllt und transformiert werden
-  habitat?: string | null;          // Name des primären Habitats
-  difficulty?: string | null;       // Name des Schwierigkeitslevels
-  herkunft: string[];              // Array von Herkunftsnamen
-  haltung: string[];               // Array von Haltungsform-Namen
-  ernahrung_kategorien?: string[];  // Array von Ernährungskategorie-Namen (optional, wenn du nur 'ernahrung' verwendest)
-  futter_arten?: string[];          // Array von Futterart-Namen (optional, wenn du nur 'ernahrung' verwendest)
-  ernahrung: string[];             // Kombinierte Liste von Ernährung/Futter
-  schwimmhoehe: string[];            // Array von Schwimmzonen-Namen
-
-  // Die folgenden Felder aus dem Datenbankobjekt werden von der API entfernt/überschrieben,
-  // daher sind sie hier nicht unbedingt nötig, es sei denn, du greifst auf das Rohobjekt vor der Transformation zu.
-  // primary_habitat?: { id: number; name: string; description?: string | null } | null;
-  // difficulty_level?: { id: number; level_name: string; description?: string | null } | null;
+  habitat?: string | null;
+  difficulty?: string | null;
+  herkunft: string[];
+  haltung: string[];
+  ernahrung_kategorien?: string[];
+  futter_arten?: string[];
+  ernahrung: string[];
+  schwimmhoehe: string[];
 };
 
-// Ggf. auch andere Typen hier zentralisieren:
-
 export type FilterState = {
-  haltung?: string[];       // Array!
-  ernahrung?: string[];     // Array!
-  temperatur?: { min: number; max: number }; 
-  schwimmhoehe?: string[];  // Array!
-  herkunft?: string[];      // Array!
-  phWert?: { min: number; max: number }; // NEU für pH-Wert
+  haltung?: string[];
+  ernahrung?: string[];
+  schwimmhoehe?: string[];
+  herkunft?: string[];
+  temperatur?: { min: number; max: number };
+  phWert?: { min: number; max: number };
+  hardness?: { min: number; max: number };
+  liters?: number; // Mindest-Liter
+  length?: number; // Mindest-Kantenlänge
+};
+
+// Basic Origin type matching the DB schema
+export type Origin = {
+  id: number;
+  name: string;
+  type: 'continent' | 'country' | 'region' | 'waterbody' | 'other';
+  parent_id: number | null;
+  slug?: string;
 };
 
 export type FilterOptions = {
@@ -77,6 +91,13 @@ export type FilterOptions = {
   ernahrung: string[];
   temperatur: string[];
   schwimmhoehe: string[];
-  herkunft: string[];
+  herkunft: Origin[]; // Changed from string[] to full Origin objects
+  bounds?: {
+    temperatur: { min: number; max: number };
+    phWert: { min: number; max: number };
+    hardness: { min: number; max: number };
+    liters: { min: number; max: number };
+    length: { min: number; max: number };
+  };
 };
 

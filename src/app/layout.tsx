@@ -1,13 +1,19 @@
-// app/layout.tsx
 import type { Metadata } from 'next';
+import { Outfit } from 'next/font/google';
 import './globals.css';
-import React from 'react';
-import Link from 'next/link'; // Importiere Link
-//import './styles/rc-slider-overrides.css'; 
+import { ThemeProvider } from '../../components/ThemeProvider';
+import { ThemeSwitcher } from '../../components/ThemeSwitcher';
+import Link from 'next/link';
+
+const outfit = Outfit({
+  subsets: ['latin'],
+  variable: '--font-outfit',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: 'Fischlexikon',
-  description: 'Das große Nachschlagewerk für Fische.',
+  description: 'Dein modernes Nachschlagewerk für die Aquaristik.',
 };
 
 export default function RootLayout({
@@ -16,24 +22,37 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="de">
-      <body className="min-h-screen bg-gray-100 font-sans text-gray-800 flex flex-col">
-        <header className="bg-white shadow-md sticky top-0 z-50">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <Link href="/" className="text-blue-700 hover:text-blue-800 transition-colors"> {/* Link hinzugefügt */}
-                <h1 className="text-3xl font-bold">Fischlexikon</h1>
+    <html lang="de" suppressHydrationWarning>
+      <body className={`${outfit.variable} font-sans min-h-screen bg-background text-foreground antialiased`}>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem themes={['light', 'dark']}>
+
+          {/* Header */}
+          <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
+            <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+              <Link href="/" className="flex items-center space-x-2">
+                <span className="text-2xl font-bold bg-gradient-to-r from-primary to-cyan-400 bg-clip-text text-transparent">
+                  Fischlexi
+                </span>
               </Link>
-              <p className="text-gray-600 text-sm mt-1">Das große Nachschlagewerk für Fische.</p>
+
+              <div className="flex items-center space-x-4">
+                {/* Add Nav Links here later */}
+                <ThemeSwitcher />
+              </div>
             </div>
-          </div>
-        </header>
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow w-full">
-          {children}
-        </main>
-        <footer className="text-center text-gray-500 text-xs py-6 mt-auto">
-          © {new Date().getFullYear()} Fischlexikon
-        </footer>
+          </header>
+
+          <main className="container mx-auto px-4 py-8">
+            {children}
+          </main>
+
+          <footer className="border-t border-border mt-20 py-10 bg-muted/30">
+            <div className="container mx-auto px-4 text-center text-muted-foreground text-sm">
+              &copy; {new Date().getFullYear()} Fischlexi. Designed with Oceanic Elegance.
+            </div>
+          </footer>
+
+        </ThemeProvider>
       </body>
     </html>
   );

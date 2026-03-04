@@ -1,14 +1,11 @@
 import React from 'react';
-import { Fish } from '../../../../lib/types'; // Pfad anpassen
+import { Fish } from '../../../../lib/types';
 import Link from 'next/link';
 import type { Metadata, ResolvingMetadata } from 'next';
-import Image from 'next/image'; // Für optimierte Bilder
-import { ArrowLeftIcon } from '@heroicons/react/24/solid'; // Optional
+import Image from 'next/image';
+import { ArrowLeftIcon, MapPinIcon, BeakerIcon, ScaleIcon, FireIcon, CubeIcon, ClockIcon } from '@heroicons/react/24/outline'; // Updated icons
+import { clsx } from 'clsx'; // Assuming clsx is installed or available via lib/utils
 
-type DescriptionSection = {
-  title: string;
-  content: string | null; // Erlaube null, falls content optional ist oder leer sein kann
-};
 const APP_BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
 async function getFishData(slugParam: string): Promise<Fish | null> {
@@ -24,254 +21,200 @@ async function getFishData(slugParam: string): Promise<Fish | null> {
 }
 
 type FishDetailPageProps = {
-  // Die Props 'params' und 'searchParams' sind jetzt Promises, die aufgelöst werden müssen
-  params: { slug: string }; // Typ für die Struktur nach dem Await
-  searchParams: { [key: string]: string | string[] | undefined }; // Typ für die Struktur nach dem Await
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 };
 
 export async function generateMetadata(
-  { params: paramsProp }: FishDetailPageProps, // paramsProp ist das Promise
+  { params: paramsProp }: FishDetailPageProps,
   parent: ResolvingMetadata
 ): Promise<Metadata> {
-  const params = await paramsProp; // PARAMS AUFLÖSEN
-  const slug = params.slug;
-  console.log(`[generateMetadata] Awaited slug: ${slug}`);
-  const fish = await getFishData(slug);
+  const params = await paramsProp;
+  const fish = await getFishData(params.slug);
 
   if (!fish) {
     return {
       title: 'Fisch nicht gefunden - Fischlexikon',
-      description: 'Der gesuchte Fisch konnte leider nicht gefunden werden.', // Sicherer Fallback
+      description: 'Der gesuchte Fisch konnte leider nicht gefunden werden.',
     };
   }
 
-  // Sicherer Zugriff auf description_general
   const metaDescriptionContent = fish.description_general && typeof fish.description_general === 'string'
-    ? fish.description_general.substring(0, 100) + '...'
-    : 'Erfahren Sie mehr über diesen faszinierenden Fisch.'; // Allgemeiner Fallback
-
-  const pageTitle = fish.name && fish.latin_name
-    ? `${fish.name} (${fish.latin_name}) - Fischlexikon`
-    : (fish.name ? `${fish.name} - Fischlexikon` : 'Fischdetails - Fischlexikon');
+    ? fish.description_general.substring(0, 150) + '...'
+    : 'Erfahren Sie mehr über diesen faszinierenden Fisch.';
 
   return {
-    title: pageTitle,
-    description: `Alle Informationen über den ${fish.name || 'diesen Fisch'}: Lebensraum, Haltung, Ernährung, Größe und mehr. ${metaDescriptionContent}`,
-    openGraph: {
-      title: pageTitle, // Verwende den gleichen Titel
-      description: metaDescriptionContent, // Verwende den gleichen sicheren Beschreibungsinhalt
-      // images: [ /* ... */ ],
-      type: 'article',
-    },
+    title: `${fish.name} (${fish.latin_name}) - Fischlexikon`,
+    description: metaDescriptionContent,
   };
 }
 
-
-// Komponente für die Detail-Eigenschaften-Tabelle
-const FishDetailTable: React.FC<{ fish: Fish }> = ({ fish }) => (
-  <div className="bg-gray-50 p-4 rounded-lg shadow">
-    <h3 className="text-lg font-semibold text-gray-700 mb-3">Steckbrief</h3>
-    <table className="w-full text-sm">
-      <tbody className="divide-y divide-gray-200">
-        <tr className="hover:bg-gray-100">
-          <td className="py-2 px-1 font-medium text-gray-600">Lateinischer Name</td>
-          <td className="py-2 px-1 text-gray-800 italic">{fish.latin_name || 'N/A'}</td>
-        </tr>
-        <tr className="hover:bg-gray-100">
-          <td className="py-2 px-1 font-medium text-gray-600">Habitat</td>
-          <td className="py-2 px-1 text-gray-800">{fish.habitat || 'N/A'}</td>
-        </tr>
-        <tr className="hover:bg-gray-100">
-          <td className="py-2 px-1 font-medium text-gray-600">Herkunft</td>
-          {/* KORREKTUR HIER: .join(', ') anwenden */}
-          <td className="py-2 px-1 text-gray-800">
-            {(Array.isArray(fish.herkunft) && fish.herkunft.length > 0)
-              ? fish.herkunft.join(', ')
-              : 'N/A'}
-          </td>
-        </tr>
-        <tr className="hover:bg-gray-100">
-          <td className="py-2 px-1 font-medium text-gray-600">Größe</td>
-          <td className="py-2 px-1 text-gray-800">{fish.size || 'N/A'}</td>
-        </tr>
-        <tr className="hover:bg-gray-100">
-          <td className="py-2 px-1 font-medium text-gray-600">Haltung</td>
-          {/* KORREKTUR HIER: .join(', ') anwenden */}
-          <td className="py-2 px-1 text-gray-800">
-            {(Array.isArray(fish.haltung) && fish.haltung.length > 0)
-              ? fish.haltung.join(', ')
-              : 'N/A'}
-          </td>
-        </tr>
-        <tr className="hover:bg-gray-100">
-          <td className="py-2 px-1 font-medium text-gray-600">Ernährung</td>
-          {/* KORREKTUR HIER: .join(', ') anwenden */}
-          <td className="py-2 px-1 text-gray-800">
-            {(Array.isArray(fish.ernahrung) && fish.ernahrung.length > 0)
-              ? fish.ernahrung.join(', ')
-              : 'N/A'}
-          </td>
-        </tr>
-        <tr className="hover:bg-gray-100">
-          <td className="py-2 px-1 font-medium text-gray-600">Temperatur</td>
-          <td className="py-2 px-1 text-gray-800">{fish.temperatur || 'N/A'}</td>
-        </tr>
-        <tr className="hover:bg-gray-100">
-          <td className="py-2 px-1 font-medium text-gray-600">Schwimmhöhe</td>
-          {/* KORREKTUR HIER: .join(', ') anwenden */}
-          <td className="py-2 px-1 text-gray-800">
-            {(Array.isArray(fish.schwimmhoehe) && fish.schwimmhoehe.length > 0)
-              ? fish.schwimmhoehe.join(', ')
-              : 'N/A'}
-          </td>
-        </tr>
-        {/* Füge hier weitere relevante Felder hinzu, falls vorhanden, z.B. Schwierigkeitsgrad */}
-        {fish.difficulty && (
-            <tr className="hover:bg-gray-100">
-            <td className="py-2 px-1 font-medium text-gray-600">Schwierigkeit</td>
-            <td className="py-2 px-1 text-gray-800">{fish.difficulty}</td>
-          </tr>
-        )}
-      </tbody>
-    </table>
+const DetailRow = ({ label, value, icon }: { label: string, value: string | React.ReactNode, icon?: React.ReactNode }) => (
+  <div className="flex items-start py-3 border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors px-2 rounded-lg">
+    <div className="flex items-center w-32 min-w-[128px] shrink-0 text-sm font-medium text-muted-foreground mr-4">
+      {icon && <span className="mr-2 text-primary">{icon}</span>}
+      {label}
+    </div>
+    <div className="flex-1 text-sm font-semibold text-foreground break-words">{value}</div>
   </div>
 );
 
+const SectionCard = ({ title, content }: { title: string, content: string }) => {
+  if (!content || content.includes("Keine")) return null;
+  return (
+    <section className="mb-8 p-6 bg-card/50 backdrop-blur-sm border border-border/50 rounded-2xl shadow-sm hover:shadow-md transition-all">
+      <h2 className="text-xl font-bold text-foreground mb-3 flex items-center">
+        <span className="w-1 h-6 bg-primary rounded-full mr-3"></span>
+        {title}
+      </h2>
+      <div className="prose prose-sm md:prose-base dark:prose-invert max-w-none text-muted-foreground leading-relaxed">
+        {content}
+      </div>
+    </section>
+  );
+};
 
 export default async function FishDetailPage({ params: paramsProp, searchParams: searchParamsProp }: FishDetailPageProps) {
-  const params = await paramsProp; // PARAMS AUFLÖSEN
-  const fishSlug = params.slug;
-  console.log(`[FishDetailPage] Awaited fishSlug: ${fishSlug}`);
-
+  const params = await paramsProp;
   const searchParams = await searchParamsProp;
-  console.log(`[FishDetailPage] Awaited searchParams:`, searchParams);
-  const fish = await getFishData(fishSlug);
+  const fish = await getFishData(params.slug);
 
   if (!fish) {
     return (
-      <div className="text-center py-10 max-w-xl mx-auto">
-        <h1 className="text-2xl font-semibold text-gray-700 mb-4">Fisch nicht gefunden</h1>
-        <p className="text-gray-500">
-          Der gesuchte Fisch "{decodeURIComponent(fishSlug)}" konnte nicht gefunden werden.
+      <div className="flex flex-col items-center justify-center min-h-[50vh] text-center px-4">
+        <h1 className="text-3xl font-bold text-foreground mb-4">Fisch nicht gefunden 🐡</h1>
+        <p className="text-muted-foreground mb-8">
+          Der gesuchte Fisch "{decodeURIComponent(params.slug)}" konnte nicht gefunden werden.
         </p>
-        <Link
-          href="/"
-          className="mt-6 inline-block bg-blue-500 text-white px-6 py-2 rounded-md hover:bg-blue-600 transition-colors"
-        >
+        <Link href="/" className="px-6 py-3 bg-primary text-primary-foreground rounded-full hover:bg-primary/90 transition-colors font-medium">
           Zurück zur Suche
         </Link>
       </div>
     );
   }
 
-  const descriptionSections: DescriptionSection[] = [ // Typ hier explizit setzen
-    {
-      title: "Allgemeines & Aussehen",
-      content: fish.description_general || "Keine allgemeine Beschreibung verfügbar."
-    },
-    {
-      title: "Verhalten & Lebensraum im Detail",
-      content: fish.description_habitat_details || fish.description_social_behavior || "Keine detaillierten Informationen zu Verhalten und Lebensraum verfügbar."
-    },
-    {
-      title: "Pflege & Haltung im Aquarium",
-      content: fish.description_care_aquarium || "Keine spezifischen Pflegehinweise für das Aquarium verfügbar."
-    },
-    {
-      title: "Zucht & Fortpflanzung",
-      content: fish.description_breeding || "Keine Informationen zur Zucht verfügbar."
-    },
-  ];
-
-  // ... (ggf. aquariumCareSection, feedingNotesSection) ...
-
-  const finalDescriptionSections: DescriptionSection[] = descriptionSections.filter( // Typ auch hier für das Ergebnis des Filters
-    section => section.content && // Stelle sicher, dass content nicht null oder leer ist
-               section.content !== "Keine allgemeine Beschreibung verfügbar." &&
-               section.content !== "Keine detaillierten Informationen zu Verhalten und Lebensraum verfügbar." &&
-               section.content !== "Keine spezifischen Pflegehinweise für das Aquarium verfügbar." &&
-               section.content !== "Keine Informationen zur Zucht verfügbar."
-  );
-
+  // Construct back link
   const queryBuilder = new URLSearchParams();
-  // Iteriere über die aufgelösten searchParams
   for (const key in searchParams) {
-    if (Object.prototype.hasOwnProperty.call(searchParams, key)) {
-      const value = searchParams[key];
-      if (value !== undefined) {
-        if (Array.isArray(value)) {
-          value.forEach(v => queryBuilder.append(key, v));
-        } else {
-          queryBuilder.append(key, value as string);
-        }
-      }
+    const value = searchParams[key];
+    if (value !== undefined) {
+      if (Array.isArray(value)) value.forEach(v => queryBuilder.append(key, v));
+      else queryBuilder.append(key, value as string);
     }
   }
-  const backToSearchQueryString = queryBuilder.toString();
-  const backToSearchHref = `/${backToSearchQueryString ? `?${backToSearchQueryString}` : ''}`;
+  const backToSearchHref = `/?${queryBuilder.toString()}`;
 
   return (
-    <div className="max-w-6xl mx-auto">
-      <div className="lg:flex lg:gap-8">
-        <div className="lg:w-2/3 prose prose-blue max-w-none dark:prose-invert">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6">
-            <h1 className="text-3xl md:text-4xl font-bold !text-blue-700 !no-underline">
+    <div className="max-w-7xl mx-auto animate-in fade-in duration-500">
+
+      {/* Navigation Header */}
+      <div className="mb-8 pt-4">
+        <Link
+          href={backToSearchHref}
+          className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-primary transition-colors group"
+        >
+          <ArrowLeftIcon className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" />
+          Zurück zur Übersicht
+        </Link>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
+
+        {/* Main Content Column */}
+        <div className="lg:col-span-8 space-y-8">
+
+          {/* Header Section */}
+          <div>
+            <h1 className="text-4xl md:text-5xl font-extrabold text-foreground mb-2 bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
               {fish.name}
             </h1>
-            <Link
-              href={backToSearchHref} // Verwende den konstruierten Href
-              className="mt-2 sm:mt-0 sm:ml-4 inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors no-underline"
-            >
-              <ArrowLeftIcon className="h-4 w-4 mr-1.5" />
-              Zurück zur Suche
-            </Link>
-          </div>
-          <p className="text-lg text-gray-500 italic lead !mt-0">
-            {fish.latin_name}
-          </p>
-
-          <div className="lg:hidden mb-6">
-            <div className="aspect-w-16 aspect-h-9 rounded-lg overflow-hidden shadow-lg">
-              <Image
-                src={fish.image_url_main || `https://source.unsplash.com/random/800x450/?${encodeURIComponent(fish.name || 'fish')},fish,underwater`}
-                alt={`Bild von ${fish.name || 'Fisch'}`}
-                fill
-                style={{ objectFit: 'cover' }}
-                priority
-                sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-              />
-            </div>
+            <p className="text-xl md:text-2xl text-primary font-serif italic opacity-90">
+              {fish.latin_name}
+            </p>
           </div>
 
-          {finalDescriptionSections.map((section, index) => (
-            <section key={index} className="mb-6">
-              <h2 className="text-2xl font-semibold !text-gray-800 !no-underline">{section.title}</h2>
-              <p className="text-gray-700 leading-relaxed">{section.content}</p>
-            </section>
-          ))}
+          {/* Mobile Image (shown only on small screens) */}
+          <div className="lg:hidden rounded-2xl overflow-hidden shadow-xl aspect-video relative ring-1 ring-border/50">
+            <Image
+              src={fish.image_url_main || '/placeholder-fish.jpg'}
+              alt={fish.name}
+              fill
+              className="object-cover"
+              priority
+            />
+          </div>
+
+          {/* Content Sections */}
+          <div className="space-y-6">
+            <SectionCard title="Allgemeines & Aussehen" content={fish.description_general || ''} />
+            <SectionCard title="Verhalten & Lebensraum" content={fish.description_habitat_details || fish.description_social_behavior || ''} />
+            <SectionCard title="Pflege & Haltung" content={fish.description_care_aquarium || ''} />
+            <SectionCard title="Zucht & Vermehrung" content={fish.description_breeding || ''} />
+          </div>
+
         </div>
 
-        <aside className="lg:w-1/3 mt-8 lg:mt-0">
-          {/* Dieser Div wird sticky. KEINE max-h und kein overflow-y-auto hier. */}
-          <div className="lg:sticky lg:top-24 space-y-6"> {/* Passe lg:top-24 an deine Headerhöhe an */}
-            
-            {/* Bild */}
-            <div className="hidden lg:block rounded-lg overflow-hidden shadow-lg 
-                            max-h-[30vh] sm:max-h-[40vh] md:max-h-[350px] lg:max-h-[400px] xl:max-h-[450px] {/* Optionale max. Bildhöhe */}
-                            "> 
-              <Image
-                src={fish.image_url_main || `https://source.unsplash.com/random/600x400/?${encodeURIComponent(fish.name || 'fish')},fish,underwater`}
-                alt={`Bild von ${fish.name || 'Fisch'}`}
-                width={600} // Basisbreite
-                height={400} // Basishöhe für Seitenverhältnis
-                className="w-full h-full object-cover" // Wichtig: h-full, damit es den max-h Container füllt
-                priority
-              />
+        {/* Sidebar / Steckbrief Column */}
+        <aside className="lg:col-span-4 space-y-6">
+
+          {/* Desktop Image (Sticky) */}
+          <div className="hidden lg:block relative rounded-2xl overflow-hidden shadow-2xl aspect-[4/3] ring-1 ring-border/50 hover:ring-primary/50 transition-all duration-500 group">
+            <Image
+              src={fish.image_url_main || '/placeholder-fish.jpg'}
+              alt={fish.name}
+              fill
+              className="object-cover group-hover:scale-105 transition-transform duration-700"
+              priority
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60"></div>
+            <div className="absolute bottom-4 left-4 right-4">
+              <span className="inline-block px-3 py-1 bg-black/40 backdrop-blur-md rounded-full text-xs text-white border border-white/20">
+                📸 {fish.name}
+              </span>
+            </div>
+          </div>
+
+          {/* Steckbrief Card */}
+          <div className="bg-card/80 backdrop-blur-xl border border-border rounded-2xl p-6 shadow-lg sticky top-24">
+            <h3 className="text-lg font-bold text-foreground mb-6 flex items-center uppercase tracking-wider text-xs">
+              <span className="w-2 h-2 bg-primary rounded-full mr-2 animate-pulse"></span>
+              Steckbrief
+            </h3>
+
+            <div className="space-y-1">
+              <DetailRow label="Latein" value={fish.latin_name || '-'} />
+              <DetailRow label="Größe" icon={<ScaleIcon className="w-4 h-4" />} value={fish.size || '-'} />
+              <DetailRow label="Temperatur" icon={<FireIcon className="w-4 h-4" />} value={fish.temperatur || '-'} />
+              <DetailRow label="pH-Wert" icon={<BeakerIcon className="w-4 h-4" />} value={fish.phWert || '-'} />
+              <DetailRow label="Wasserhärte" icon={<span className="text-xs">💧</span>} value={fish.hardness || '-'} />
+              <DetailRow label="Aquarium" icon={<CubeIcon className="w-4 h-4" />} value={
+                <div className="flex flex-col">
+                  <span>{fish.min_tank_size || '-'}</span>
+                  {fish.min_tank_length && <span className="text-xs text-muted-foreground">Kantenlänge: {fish.min_tank_length}</span>}
+                </div>
+              } />
+              <DetailRow label="Lebenserwartung" icon={<ClockIcon className="w-4 h-4" />} value={fish.lifespan || '-'} />
+              <DetailRow label="Herkunft" icon={<MapPinIcon className="w-4 h-4" />} value={fish.herkunft?.join(', ') || '-'} />
+              <DetailRow label="Ernährung" icon={<span className="text-xs">🍽️</span>} value={fish.ernahrung?.join(', ') || '-'} />
+              <DetailRow label="Haltung" icon={<span className="text-xs">🏠</span>} value={fish.haltung?.join(', ') || '-'} />
+              <DetailRow label="Schwimmhöhe" icon={<span className="text-xs">↕️</span>} value={fish.schwimmhoehe?.join(', ') || '-'} />
+              {fish.difficulty && <DetailRow label="Schwierigkeit" icon={<span className="text-xs">⭐</span>} value={fish.difficulty} />}
+              {fish.common_names && <div className="pt-2 mt-2 border-t border-border/50">
+                <span className="block text-xs font-medium text-muted-foreground mb-1">Andere Namen:</span>
+                <span className="text-xs italic text-foreground/80">{fish.common_names}</span>
+              </div>}
             </div>
 
-            <FishDetailTable fish={fish} />
+            {/* Call to Action or extra badge */}
+            <div className="mt-8 pt-6 border-t border-border/50 text-center">
+              <span className="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-primary/10 text-primary text-sm font-medium">
+                🌊 Perfekt für dein Aquarium?
+              </span>
+            </div>
           </div>
+
         </aside>
+
       </div>
     </div>
   );
