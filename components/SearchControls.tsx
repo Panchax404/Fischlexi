@@ -81,7 +81,7 @@ export default function SearchControls({ initialOptions, initialFilters, initial
     };
 
     return (
-        <form onSubmit={handleSearchFormSubmit} className="mb-12">
+        <form onSubmit={handleSearchFormSubmit} className="mb-12" data-testid="search-form">
             <div className="relative max-w-2xl mx-auto mb-8">
                 <label htmlFor="search-input" className="sr-only">Fisch suchen</label>
                 <div className="relative">
@@ -90,6 +90,7 @@ export default function SearchControls({ initialOptions, initialFilters, initial
                     </div>
                     <input
                         id="search-input"
+                        data-testid="search-input"
                         type="text"
                         className="block w-full pl-12 pr-4 py-4 border-2 border-border/50 rounded-full bg-card/80 backdrop-blur-sm text-lg text-foreground placeholder:text-muted-foreground shadow-lg focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all duration-300 ease-out hover:bg-card"
                         placeholder="Suche nach Name, Art oder Merkmal..."

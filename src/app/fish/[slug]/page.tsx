@@ -82,7 +82,7 @@ export default async function FishDetailPage({ params: paramsProp, searchParams:
   if (!fish) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] text-center px-4">
-        <h1 className="text-3xl font-bold text-foreground mb-4">Fisch nicht gefunden 🐡</h1>
+        <h1 data-testid="fish-not-found" className="text-3xl font-bold text-foreground mb-4">Fisch nicht gefunden 🐡</h1>
         <p className="text-muted-foreground mb-8">
           Der gesuchte Fisch "{decodeURIComponent(params.slug)}" konnte nicht gefunden werden.
         </p>
@@ -125,7 +125,7 @@ export default async function FishDetailPage({ params: paramsProp, searchParams:
 
           {/* Header Section */}
           <div>
-            <h1 className="text-4xl md:text-5xl font-extrabold text-foreground mb-2 bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
+            <h1 data-testid="fish-detail-name" className="text-4xl md:text-5xl font-extrabold text-foreground mb-2 bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
               {fish.name}
             </h1>
             <p className="text-xl md:text-2xl text-primary font-serif italic opacity-90">

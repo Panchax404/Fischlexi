@@ -36,8 +36,8 @@ const FishCard: React.FC<FishCardProps> = ({ fish, activeFilters, searchQueryFro
       transition={{ duration: 0.3 }}
       whileHover={{ y: -5 }}
     >
-      <Link href={detailPageHref} className="block group h-full">
-        <div className="h-full flex flex-col bg-card border border-border rounded-2xl overflow-hidden shadow-sm hover:shadow-xl hover:shadow-primary/10 transition-all duration-300 relative">
+      <Link href={detailPageHref} className="block group h-full" data-testid="fish-card-link">
+        <div data-testid="fish-card" className="h-full flex flex-col bg-card border border-border rounded-2xl overflow-hidden shadow-sm hover:shadow-xl hover:shadow-primary/10 transition-all duration-300 relative">
 
           <div className="h-44 bg-muted relative overflow-hidden group-hover:scale-105 transition-transform duration-500">
             {fish.image_url_main ? (
@@ -54,7 +54,7 @@ const FishCard: React.FC<FishCardProps> = ({ fish, activeFilters, searchQueryFro
 
           <div className="p-5 flex flex-col flex-grow">
             <div className="mb-3">
-              <h3 className="text-xl font-bold text-foreground group-hover:text-primary transition-colors line-clamp-1" title={fish.name}>
+              <h3 data-testid="fish-name" className="text-xl font-bold text-foreground group-hover:text-primary transition-colors line-clamp-1" title={fish.name}>
                 {fish.name}
               </h3>
               <p className="text-sm text-muted-foreground italic font-medium line-clamp-1">{fish.latin_name}</p>

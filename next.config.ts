@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  allowedDevOrigins: ['192.168.178.64'],
   images: {
     remotePatterns: [
       {
@@ -9,13 +10,18 @@ const nextConfig = {
         port: '',
         pathname: '/random/**',
       },
-      { // NEUER EINTRAG für Wikimedia Commons
+      { //Wikimedia Commons
         protocol: 'https',
         hostname: 'upload.wikimedia.org',
         port: '',
-        pathname: '/wikipedia/commons/**', // Erlaubt Bilder aus dem /commons/ Unterverzeichnis
+        pathname: '/wikipedia/commons/**',
       },
-      // Hier kannst du weitere erlaubte Hostnames hinzufügen
+      { // Pixabay
+        protocol: 'https',
+        hostname: 'cdn.pixabay.com',
+        port: '',
+        pathname: '/photo/**',
+      },
     ],
   },
 };

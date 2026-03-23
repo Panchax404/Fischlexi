@@ -34,3 +34,18 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## End-to-End Testing
+
+We use [Playwright](https://playwright.dev/) for real browser testing across the application. Wait until your dev server runs (`npm run dev`) before starting the tests.
+
+```bash
+# Rufe alle E2E Tests headlessly auf
+npx playwright test
+
+# Öffne den Playwright UI Mode um Tests visuell durchzuklicken und zu debuggen
+npx playwright test --ui
+
+# Lasse dir einen HTML-Report der letzten Testergebnisse im Browser generieren
+npx playwright show-report
+```

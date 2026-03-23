@@ -72,6 +72,7 @@ const AccordionFilterSection: React.FC<AccordionFilterSectionProps> = ({
     <div className="w-full">
       <button
         type="button"
+        data-testid={`filter-accordion-toggle-${filterKey}`}
         onClick={() => setIsOpen(!isOpen)}
         disabled={disabled}
         className={`w-full flex items-center justify-between px-4 py-3 text-left text-sm font-semibold transition-all duration-200
@@ -111,6 +112,7 @@ const AccordionFilterSection: React.FC<AccordionFilterSectionProps> = ({
                 <div className="relative flex items-center">
                   <input
                     type="checkbox"
+                    data-testid={`filter-checkbox-${filterKey}-${opt}`}
                     checked={selectedValues.includes(opt)}
                     onChange={() => onCheckboxChange(filterKey, opt)}
                     disabled={disabled}
@@ -352,6 +354,7 @@ const FilterBar: React.FC<FilterBarProps> = ({ filter, setFilter, options, disab
         {hasActiveFilters && (
           <button
             type="button"
+            data-testid="clear-all-filters-btn"
             onClick={() => setFilter({})}
             className="px-3 py-1.5 text-xs font-medium bg-destructive/10 text-destructive rounded-lg hover:bg-destructive/20 transition-colors flex items-center"
             disabled={disabled}

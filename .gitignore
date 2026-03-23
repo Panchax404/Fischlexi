@@ -40,3 +40,26 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# agents
+/.agent/
+/.agents/
+.agents/.system_generated/
+skills-lock.json
+
+# playwright
+/playwright-report/
+/test-results/
+/blob-report/
+/playwright/.cache/
+/e2e/
+playwright.config.ts
+
+# Documentation
+TESTPLAN.md
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+

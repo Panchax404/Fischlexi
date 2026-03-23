@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { getSupabaseAdmin } from '../../../../../../lib/supabaseClient'; // Pfad anpassen
 
 const supabaseAdmin = getSupabaseAdmin();
@@ -30,7 +30,7 @@ export async function GET(
         is_published, author_notes, created_at, updated_at,
         primary_habitat:habitats (id, name, description), 
         difficulty_level:difficulty_levels (id, level_name, description),
-        fish_origins:fish_origins!inner (origin:origins!inner (id, name, continent)),
+        fish_origins:fish_origins!inner (origin:origins!inner (id, name)),
         fish_keeping_types:fish_keeping_types!inner (keeping_type:keeping_types!inner (id, name, min_group_size)),
         fish_feeding_categories_map:fish_feeding_categories_map!inner (feeding_category:feeding_categories!inner (id, name)),
         fish_food_types_suitability:fish_food_types_suitability!inner (food_type:food_types!inner (id, name)),
@@ -53,9 +53,9 @@ export async function GET(
       ...fishData,
       // Die relationalen Daten sind bereits als Arrays von Objekten im fishData enthalten.
       // Wir wollen sie vielleicht in einfachere Arrays von Strings umwandeln, wie es dein Frontend erwartet.
-      habitat: fishData.primary_habitat?.name || null,
-      difficulty: fishData.difficulty_level?.level_name || null,
-      herkunft: fishData.fish_origins.map((join: any) => join.origin.name),
+      habitat: Array.isArray(fishData.primary_habitat) ? fishData.primary_habitat[0]?.name : fishData.primary_habitat?.name || null,
+      difficulty: Array.isArray(fishData.difficulty_level) ? fishData.difficulty_level[0]?.level_name : fishData.difficulty_level?.level_name || null,
+      herkunft: fishData.fish_origins?.map((join: any) => join.origin.name) || [],
       haltung: fishData.fish_keeping_types.map((join: any) => join.keeping_type.name),
       // Für die Ernährung brauchen wir ggf. beides: Kategorien und spezifische Futterarten
       ernahrung_kategorien: fishData.fish_feeding_categories_map.map((join: any) => join.feeding_category.name),
