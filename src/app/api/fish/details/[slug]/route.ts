@@ -30,13 +30,13 @@ export async function GET(
         is_published, author_notes, created_at, updated_at,
         primary_habitat:habitats (id, name, description), 
         difficulty_level:difficulty_levels (id, level_name, description),
-        fish_origins:fish_origins!inner (origin:origins!inner (id, name)),
-        fish_keeping_types:fish_keeping_types!inner (keeping_type:keeping_types!inner (id, name, min_group_size)),
-        fish_feeding_categories_map:fish_feeding_categories_map!inner (feeding_category:feeding_categories!inner (id, name)),
-        fish_food_types_suitability:fish_food_types_suitability!inner (food_type:food_types!inner (id, name)),
-        fish_swimming_zones:fish_swimming_zones!inner (swimming_zone:swimming_zones!inner (id, zone_name))
+        fish_origins:fish_origins (origin:origins (id, name)),
+        fish_keeping_types:fish_keeping_types (keeping_type:keeping_types (id, name, min_group_size)),
+        fish_feeding_categories_map:fish_feeding_categories_map (feeding_category:feeding_categories (id, name)),
+        fish_food_types_suitability:fish_food_types_suitability (food_type:food_types (id, name)),
+        fish_swimming_zones:fish_swimming_zones (swimming_zone:swimming_zones (id, zone_name))
       `)
-      .eq('slug', slug) // Suche anhand des eindeutigen Slugs
+      .ilike('slug', slug) // Suche case-insensitive (falls Slug Großbuchstaben enthält)
       .maybeSingle();
 
     if (fishError) {
@@ -55,19 +55,19 @@ export async function GET(
       // Wir wollen sie vielleicht in einfachere Arrays von Strings umwandeln, wie es dein Frontend erwartet.
       habitat: Array.isArray(fishData.primary_habitat) ? fishData.primary_habitat[0]?.name : fishData.primary_habitat?.name || null,
       difficulty: Array.isArray(fishData.difficulty_level) ? fishData.difficulty_level[0]?.level_name : fishData.difficulty_level?.level_name || null,
-      herkunft: fishData.fish_origins?.map((join: any) => join.origin.name) || [],
-      haltung: fishData.fish_keeping_types.map((join: any) => join.keeping_type.name),
+      herkunft: fishData.fish_origins?.map((join: any) => join.origin?.name).filter(Boolean) || [],
+      haltung: fishData.fish_keeping_types?.map((join: any) => join.keeping_type?.name).filter(Boolean) || [],
       // Für die Ernährung brauchen wir ggf. beides: Kategorien und spezifische Futterarten
-      ernahrung_kategorien: fishData.fish_feeding_categories_map.map((join: any) => join.feeding_category.name),
-      futter_arten: fishData.fish_food_types_suitability.map((join: any) => join.food_type.name),
+      ernahrung_kategorien: fishData.fish_feeding_categories_map?.map((join: any) => join.feeding_category?.name).filter(Boolean) || [],
+      futter_arten: fishData.fish_food_types_suitability?.map((join: any) => join.food_type?.name).filter(Boolean) || [],
       // Dein Frontend erwartet wahrscheinlich eine kombinierte Ernährungsliste
       ernahrung: [
         ...new Set([ // Eindeutige Werte
-          ...fishData.fish_feeding_categories_map.map((join: any) => join.feeding_category.name),
-          ...fishData.fish_food_types_suitability.map((join: any) => join.food_type.name)
+          ...(fishData.fish_feeding_categories_map || []).map((join: any) => join.feeding_category?.name).filter(Boolean),
+          ...(fishData.fish_food_types_suitability || []).map((join: any) => join.food_type?.name).filter(Boolean)
         ])
       ],
-      schwimmhoehe: fishData.fish_swimming_zones.map((join: any) => join.swimming_zone.zone_name),
+      schwimmhoehe: fishData.fish_swimming_zones?.map((join: any) => join.swimming_zone?.zone_name).filter(Boolean) || [],
 
       // Entferne die komplexen Join-Objekte, wenn das Frontend sie nicht direkt braucht
       primary_habitat: undefined,

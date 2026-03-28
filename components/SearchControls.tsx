@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import FilterBar from "./FilterBar";
 import type { FilterState } from '../lib/types';
@@ -53,6 +53,7 @@ const buildUrlQueryString = (
 
 export default function SearchControls({ initialOptions, initialFilters, initialQuery }: SearchControlsProps) {
     const router = useRouter();
+    const [isPending, startTransition] = useTransition();
 
     const [searchQueryInput, setSearchQueryInput] = useState(initialQuery);
     const [filters, setFilters] = useState<FilterState>(initialFilters);
@@ -65,11 +66,19 @@ export default function SearchControls({ initialOptions, initialFilters, initial
         return () => clearTimeout(handler);
     }, [searchQueryInput]);
 
+    const isMounted = React.useRef(false);
+
     useEffect(() => {
+        if (!isMounted.current) {
+            isMounted.current = true;
+            return;
+        }
         const queryString = buildUrlQueryString(debouncedSearchQueryInput, filters);
         const newPath = `/${queryString ? `?${queryString}` : ''}`;
-        router.push(newPath, { scroll: false });
-    }, [debouncedSearchQueryInput, filters]);
+        startTransition(() => {
+            router.push(newPath, { scroll: false });
+        });
+    }, [debouncedSearchQueryInput, filters, router]);
 
     const handleFilterChange = (newFilterOrUpdater: FilterState | ((prevState: FilterState) => FilterState)) => {
         setFilters(newFilterOrUpdater);
@@ -86,7 +95,14 @@ export default function SearchControls({ initialOptions, initialFilters, initial
                 <label htmlFor="search-input" className="sr-only">Fisch suchen</label>
                 <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                        <MagnifyingGlassIcon className="h-6 w-6 text-muted-foreground" />
+                        {isPending ? (
+                            <svg className="animate-spin h-6 w-6 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                        ) : (
+                            <MagnifyingGlassIcon className="h-6 w-6 text-muted-foreground" />
+                        )}
                     </div>
                     <input
                         id="search-input"

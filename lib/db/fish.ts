@@ -36,15 +36,12 @@ export async function searchFish({ q, page = 1, limit = 12, filters = {} }: Sear
 
         // Text Search
         if (q && q.trim()) {
-            const searchTerm = q.trim();
+            // Remove characters that might break PostgREST .or() syntax like commas
+            const searchTerm = q.trim().replace(/,/g, ' ');
+            // We use ILIKE for partial name matching (now blazing fast because of GIN Trigram indexes on name and latin_name)
+            // and we use Web-FTS (wfts) on the search_vector (GIN indexed) for deep descriptions and full text.
             query = query.or(
-                `name.ilike.%${searchTerm}%,latin_name.ilike.%${searchTerm}%,description_general.ilike.%${searchTerm}%,common_other_names.cs.{${searchTerm}}`
-                // Note: Array search in Supabase/PostgREST uses specific syntax, cs (contains) might need exact match or different approach.
-                // For simplified text search on arrays we might need a different approach or raw SQL.
-                // Fallback: search common names as text representation if possible, or just stick to simple fields for now.
-                // Let's try simple text search first, but common_other_names is text[]. 
-                // A reliable way in Supabase JS for array ILIKE is tricky without RPC.
-                // We'll stick to name/latin/description for now to avoid 500 errors, or use specific text search index later.
+                `name.ilike.%${searchTerm}%,latin_name.ilike.%${searchTerm}%,search_vector.wfts.${searchTerm}`
             );
         }
 
@@ -108,14 +105,14 @@ export async function searchFish({ q, page = 1, limit = 12, filters = {} }: Sear
                 .gte('water_hardness_dh_max', filters.hardness.min);
         }
 
-        // Liters (Min Tank Size) - Filter: Show fish that require AT LEAST X liters
+        // Liters (Min Tank Size) - Filter: Show fish that fit in an aquarium of X liters (fish min requirement <= X)
         if (filters.liters !== undefined) {
-            query = query.gte('aquarium_min_liters', filters.liters);
+            query = query.lte('aquarium_min_liters', filters.liters);
         }
 
-        // Edge Length (Min Length) - Filter: Show fish that require AT LEAST X cm
+        // Edge Length (Min Length) - Filter: Show fish that fit in an aquarium of X cm length (fish min requirement <= X)
         if (filters.length !== undefined) {
-            query = query.gte('aquarium_min_edge_length_cm', filters.length);
+            query = query.lte('aquarium_min_edge_length_cm', filters.length);
         }
 
         // Sorting & Pagination

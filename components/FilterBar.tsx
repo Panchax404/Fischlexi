@@ -146,6 +146,7 @@ interface SingleSliderFilterSectionProps {
   onChange: (value: number | undefined) => void;
   unit?: string;
   disabled?: boolean;
+  inputLabel?: string;
 }
 
 const SingleSliderFilterSection: React.FC<SingleSliderFilterSectionProps> = ({
@@ -157,6 +158,7 @@ const SingleSliderFilterSection: React.FC<SingleSliderFilterSectionProps> = ({
   onChange,
   unit = '',
   disabled = false,
+  inputLabel,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [localValue, setLocalValue] = useState<number>(minValue);
@@ -210,7 +212,7 @@ const SingleSliderFilterSection: React.FC<SingleSliderFilterSectionProps> = ({
           {title}
           {isActive && (
             <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-primary/20 text-primary">
-              ab {formatValue(currentValue!)}{unit}
+              {formatValue(currentValue!)}{unit}
             </span>
           )}
         </span>
@@ -243,7 +245,7 @@ const SingleSliderFilterSection: React.FC<SingleSliderFilterSectionProps> = ({
           </div>
 
           <div className="mb-4">
-            <label className="block text-xs font-medium text-muted-foreground mb-1">Mindestwert ({unit})</label>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">{inputLabel || 'Max. Anforderung'} ({unit})</label>
             <input
               type="number"
               value={inputValue}
@@ -435,7 +437,7 @@ const FilterBar: React.FC<FilterBarProps> = ({ filter, setFilter, options, disab
         />
 
         <SingleSliderFilterSection
-          title="Aquariumgröße"
+          title="Dein Aquarium (Volumen)"
           minValue={options.bounds?.liters?.min ?? GLOBAL_MIN_LITERS}
           maxValue={options.bounds?.liters?.max ?? GLOBAL_MAX_LITERS}
           step={LITERS_STEP}
@@ -443,10 +445,11 @@ const FilterBar: React.FC<FilterBarProps> = ({ filter, setFilter, options, disab
           onChange={(val) => handleSingleChange('liters', val)}
           unit="L"
           disabled={disabled}
+          inputLabel="Dein Beckenvolumen"
         />
 
         <SingleSliderFilterSection
-          title="Kantenlänge Aquarium"
+          title="Dein Aquarium (Breite)"
           minValue={options.bounds?.length?.min ?? GLOBAL_MIN_LENGTH}
           maxValue={options.bounds?.length?.max ?? GLOBAL_MAX_LENGTH}
           step={LENGTH_STEP}
@@ -454,6 +457,7 @@ const FilterBar: React.FC<FilterBarProps> = ({ filter, setFilter, options, disab
           onChange={(val) => handleSingleChange('length', val)}
           unit="cm"
           disabled={disabled}
+          inputLabel="Deine Kantenlänge"
         />
       </div>
     </div>

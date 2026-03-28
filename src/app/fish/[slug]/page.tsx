@@ -139,6 +139,7 @@ export default async function FishDetailPage({ params: paramsProp, searchParams:
               src={fish.image_url_main || '/placeholder-fish.jpg'}
               alt={fish.name}
               fill
+              sizes="(max-width: 1024px) 100vw, 800px"
               className="object-cover"
               priority
             />
@@ -163,6 +164,7 @@ export default async function FishDetailPage({ params: paramsProp, searchParams:
               src={fish.image_url_main || '/placeholder-fish.jpg'}
               alt={fish.name}
               fill
+              sizes="(max-width: 1024px) 100vw, 33vw"
               className="object-cover group-hover:scale-105 transition-transform duration-700"
               priority
             />

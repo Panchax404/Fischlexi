@@ -22,6 +22,12 @@ const nextConfig = {
         port: '',
         pathname: '/photo/**',
       },
+      { // Zoobox
+        protocol: 'https',
+        hostname: 'zoobox.de',
+        port: '',
+        pathname: '/**',
+      },
     ],
   },
 };
