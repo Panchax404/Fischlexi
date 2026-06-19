@@ -55,7 +55,7 @@ skills-lock.json
 playwright.config.ts
 
 # Documentation
-TESTPLAN.md
+docs/
 
 # IDE files
 .vscode/
@@ -63,3 +63,9 @@ TESTPLAN.md
 *.swp
 *.swo
 
+# Extra Security
+*.sqlite
+*.db
+*.log
+supabase/.temp/
+supabase/*.sql

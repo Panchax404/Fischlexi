@@ -1,219 +1,349 @@
 'use client';
 
-import React, { useState, Fragment, useMemo } from 'react';
-import { Transition } from '@headlessui/react';
-import { ChevronDownIcon, XCircleIcon, CheckIcon, ChevronRightIcon } from '@heroicons/react/24/solid';
-import { Origin } from '../lib/types';
+import React, { useState, useMemo, useCallback, useEffect, Fragment } from 'react';
+import { Origin, OriginCrossRef } from '../lib/types';
+import { Dialog, Transition } from '@headlessui/react';
+import { XMarkIcon, ChevronDownIcon, ChevronRightIcon, CheckIcon, MinusIcon } from '@heroicons/react/24/solid';
 
 interface OriginFilterProps {
     options: Origin[];
-    selectedValues: string[] | undefined; // IDs as strings
-    onCheckboxChange: (value: string) => void;
+    crossRefs: OriginCrossRef[];
+    selectedValues: string[] | undefined;
+    onCheckboxChange?: (value: string) => void;
+    onMultipleChange?: (values: string[]) => void;
     onResetFilter: () => void;
     disabled?: boolean;
 }
 
-type Tab = 'ort' | 'gebiet';
+type CheckState = 'checked' | 'unchecked' | 'indeterminate';
 
-const OriginFilter: React.FC<OriginFilterProps> = ({
+const TYPE_CONFIG: Record<string, { icon: string; label: string }> = {
+    continent: { icon: '🌍', label: 'Kontinent' },
+    country: { icon: '🏳️', label: 'Land' },
+    region: { icon: '📍', label: 'Region' },
+    waterbody: { icon: '💧', label: 'Gewässer' },
+    other: { icon: '📌', label: 'Sonstiges' },
+};
+
+
+
+export default function OriginFilter({
     options,
+    crossRefs,
     selectedValues = [],
+    onMultipleChange,
     onCheckboxChange,
     onResetFilter,
     disabled
-}) => {
+}: OriginFilterProps) {
     const [isOpen, setIsOpen] = useState(false);
-    const [activeTab, setActiveTab] = useState<Tab>('ort');
-    const [expandedNodes, setExpandedNodes] = useState<Set<number>>(new Set());
+    
+    // Draft-Zustand, solange das Modal offen ist
+    const [draftSelected, setDraftSelected] = useState<Set<string>>(new Set());
+    const [expandedNodeIds, setExpandedNodeIds] = useState<Set<number>>(new Set());
 
-    // Helper to toggle node expansion
-    const toggleExpand = (id: number, e: React.MouseEvent) => {
-        e.stopPropagation();
-        setExpandedNodes(prev => {
+    const joinedSelected = (selectedValues || []).join(',');
+
+    // Synchronisiere den Draft-Status, beim Öffnen
+    useEffect(() => {
+        if (isOpen) {
+            setDraftSelected(new Set(joinedSelected ? joinedSelected.split(',') : []));
+        }
+    }, [isOpen, joinedSelected]);
+
+    // Graph Construction logic (wie bisher, sehr bewährt)
+    const { childrenMap, roots, allDescendantSlugs } = useMemo(() => {
+        const originById = new Map<number, Origin>();
+        const childrenMap = new Map<number, Origin[]>();
+        const roots: Origin[] = [];
+
+        options.forEach(opt => {
+            originById.set(opt.id, opt);
+            if (opt.parent_id) {
+                if (!childrenMap.has(opt.parent_id)) childrenMap.set(opt.parent_id, []);
+                childrenMap.get(opt.parent_id)!.push(opt);
+            } else if (opt.type !== 'waterbody') {
+                roots.push(opt);
+            }
+        });
+
+        // Resolve cross references
+        crossRefs.forEach(cr => {
+            const origin = originById.get(cr.origin_id);
+            if (origin) {
+                if (!childrenMap.has(cr.also_appears_under_id)) childrenMap.set(cr.also_appears_under_id, []);
+                const existing = childrenMap.get(cr.also_appears_under_id)!;
+                if (!existing.find(o => o.id === origin.id)) existing.push(origin);
+            }
+        });
+
+        childrenMap.forEach(children => children.sort((a, b) => a.name.localeCompare(b.name, 'de')));
+
+        const allDescendantSlugs = new Map<string, Set<string>>();
+        const computeDescendants = (node: Origin): Set<string> => {
+            if (allDescendantSlugs.has(node.slug)) return allDescendantSlugs.get(node.slug)!;
+            const descendants = new Set<string>();
+            const children = childrenMap.get(node.id) || [];
+            for (const child of children) {
+                descendants.add(child.slug);
+                for (const d of computeDescendants(child)) descendants.add(d);
+            }
+            allDescendantSlugs.set(node.slug, descendants);
+            return descendants;
+        };
+        options.forEach(o => computeDescendants(o));
+
+        return { childrenMap, roots, allDescendantSlugs };
+    }, [options, crossRefs]);
+
+    const getCheckState = useCallback((node: Origin): CheckState => {
+        if (draftSelected.has(node.slug)) return 'checked';
+
+        const children = childrenMap.get(node.id) || [];
+        if (children.length === 0) return 'unchecked';
+
+        const childStates = children.map(c => getCheckState(c));
+        const allChecked = childStates.every(s => s === 'checked');
+        const someChecked = childStates.some(s => s === 'checked' || s === 'indeterminate');
+
+        if (allChecked) return 'checked';
+        if (someChecked) return 'indeterminate';
+        return 'unchecked';
+    }, [draftSelected, childrenMap]);
+
+    const handleSelect = useCallback((node: Origin) => {
+        setDraftSelected(prev => {
+            const next = new Set(prev);
+            const currentState = getCheckState(node);
+            const descendants = allDescendantSlugs.get(node.slug) || new Set();
+
+            if (currentState === 'unchecked' || currentState === 'indeterminate') {
+                for (const d of Array.from(descendants)) next.delete(d);
+                next.add(node.slug);
+            } else {
+                next.delete(node.slug);
+                for (const d of Array.from(descendants)) next.delete(d);
+            }
+            return next;
+        });
+    }, [getCheckState, allDescendantSlugs]);
+
+    const toggleExpand = useCallback((id: number) => {
+        setExpandedNodeIds(prev => {
             const next = new Set(prev);
             if (next.has(id)) next.delete(id);
             else next.add(id);
             return next;
         });
+    }, []);
+
+    const handleApply = () => {
+        if (onMultipleChange) {
+            onMultipleChange(Array.from(draftSelected));
+        } else if (onCheckboxChange) {
+            onResetFilter();
+            draftSelected.forEach(slug => onCheckboxChange(slug));
+        }
+        setIsOpen(false);
     };
 
-    // Build Tree
-    const { rootsOrt, rootsGebiet, childrenMap } = useMemo(() => {
-        const rootsOrt: Origin[] = [];
-        const rootsGebiet: Origin[] = [];
-        const childrenMap = new Map<number, Origin[]>();
+    const renderCheckbox = (state: CheckState) => {
+        const base = 'w-5 h-5 flex items-center justify-center rounded-[4px] border transition-all duration-150 flex-shrink-0 cursor-pointer';
+        switch (state) {
+            case 'checked':
+                return (
+                    <div className={`${base} bg-primary border-primary text-white shadow-sm`}>
+                        <CheckIcon className="w-3.5 h-3.5 font-bold" />
+                    </div>
+                );
+            case 'indeterminate':
+                return (
+                    <div className={`${base} bg-primary border-primary text-white shadow-sm`}>
+                        <MinusIcon className="w-3.5 h-3.5" strokeWidth={3} />
+                    </div>
+                );
+            default:
+                return <div className={`${base} bg-input border-border/80 group-hover:border-primary/50`} />;
+        }
+    };
 
-        options.forEach(opt => {
-            if (opt.parent_id) {
-                if (!childrenMap.has(opt.parent_id)) childrenMap.set(opt.parent_id, []);
-                childrenMap.get(opt.parent_id)!.push(opt);
-            } else {
-                // Root nodes - usually Continents
-                // We put Continents in BOTH tabs? Or split logic?
-                // User wanted "Ort" (Europe -> Germany) and "Gebiet" (S.America -> Amazon)
-                // Usually Continents are the root for both.
-                // We will show Continents in both, but filter CHILDREN based on type.
-                rootsOrt.push(opt);
-                rootsGebiet.push(opt);
-            }
-        });
-
-        return { rootsOrt, rootsGebiet, childrenMap };
-    }, [options]);
-
-    // Recursive Tree Node Renderer
-    const renderNode = (node: Origin, depth = 0) => {
+    const renderNode = (node: Origin, depth: number = 0) => {
         const children = childrenMap.get(node.id) || [];
-
-        // FILTER CHILDREN driven by Tab?
-        // Ort Tab: Show Countries, Continents. Hide Region/Waterbody?
-        // Gebiet Tab: Show Region, Waterbody, Continents. Hide Country?
-
-        // Logic:
-        // Tab 'ort': Show if type is 'continent' or 'country' or 'other'.
-        // Tab 'gebiet': Show if type is 'continent' or 'region' or 'waterbody' or 'other'.
-
-        const relevantChildren = children.filter(child => {
-            if (activeTab === 'ort') return child.type === 'country' || child.type === 'continent'; // Continent children of continent? unlikely.
-            if (activeTab === 'gebiet') return child.type === 'region' || child.type === 'waterbody';
-            return true;
-        });
-
-        // If leaf node and not relevant to current tab, typically we shouldn't even render it?
-        // But what if a 'country' has 'regions'? (e.g. USA -> Florida Everglades)
-        // Complex. Let's stick to the user's simpler request: 
-        // Ort: Europe -> Germany
-        // Gebiet: SouthAmerica -> Amazon
-
-        // If a node is a COMPATIBLE type for the tab, we show it.
-        // Roots (Continents) are always shown.
-
-        const isRelevantForTab = (
-            node.type === 'continent' ||
-            (activeTab === 'ort' && node.type === 'country') ||
-            (activeTab === 'gebiet' && (node.type === 'region' || node.type === 'waterbody'))
-        );
-
-        if (!isRelevantForTab) return null;
-
-        const hasChildren = relevantChildren.length > 0;
-        const isExpanded = expandedNodes.has(node.id);
-        const isSelected = selectedValues.includes(String(node.id));
+        const hasChildren = children.length > 0;
+        const isExpanded = expandedNodeIds.has(node.id);
+        const state = getCheckState(node);
+        const isRoot = depth === 0;
 
         return (
-            <div key={node.id} className="select-none">
-                <div
-                    className={`flex items-center py-1.5 px-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer ${depth > 0 ? 'ml-3 border-l border-border/40 pl-3' : ''}`}
-                    onClick={() => onCheckboxChange(String(node.id))}
+            <div key={node.id} className="flex flex-col">
+                <div 
+                    className={`flex items-center min-h-[44px] group hover:bg-muted/40 transition-colors 
+                               ${depth === 0 ? 'border-b border-border/40' : ''}`}
+                    style={{ paddingLeft: `${depth * 1.5 + 1.5}rem`, paddingRight: '1.5rem' }}
                 >
-                    {/* Checkbox */}
-                    <div className={`w-4 h-4 mr-3 flex items-center justify-center rounded border transition-all ${isSelected ? 'bg-primary border-primary text-primary-foreground' : 'border-input bg-background'}`}>
-                        {isSelected && <CheckIcon className="w-3 h-3" />}
-                    </div>
-
-                    {/* Label */}
-                    <span className={`text-sm flex-grow ${isSelected ? 'font-medium text-foreground' : 'text-muted-foreground'}`}>
-                        {node.name}
-                        {/* Debug Type Badge? No, clear enough by tab */}
-                    </span>
-
-                    {/* Expand Button */}
-                    {hasChildren && (
-                        <button
+                    {/* Expand/Collapse (Pfeil) */}
+                    {hasChildren ? (
+                        <button 
                             type="button"
-                            onClick={(e) => toggleExpand(node.id, e)}
-                            className="p-1 rounded-md hover:bg-muted text-muted-foreground"
+                            onClick={(e) => { e.stopPropagation(); toggleExpand(node.id); }}
+                            className="p-1 mr-1.5 -ml-1 rounded-md hover:bg-muted text-muted-foreground/50 hover:text-foreground flex-shrink-0"
+                            aria-label="Aufklappen"
                         >
-                            <ChevronRightIcon className={`w-3.5 h-3.5 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`} />
+                            <ChevronRightIcon className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`} />
                         </button>
+                    ) : (
+                        <div className="w-6 flex-shrink-0 mr-1 -ml-1" /> // Platzhalter für Einrückung
                     )}
+
+                    {/* Checkbox */}
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            handleSelect(node);
+                            if (hasChildren) {
+                                const willBeChecked = (state === 'unchecked' || state === 'indeterminate');
+                                if (willBeChecked && !isExpanded) toggleExpand(node.id); // Aufklappen wenn Haken reinkommt
+                                else if (!willBeChecked && isExpanded) toggleExpand(node.id); // Zuklappen wenn Haken rausgeht
+                            }
+                        }}
+                        className="p-1 flex-shrink-0 outline-none"
+                    >
+                        {renderCheckbox(state)}
+                    </button>
+
+                    {/* Region-Name (klickbar um aufzuklappen UND selektieren) */}
+                    <div 
+                        className="flex items-center flex-grow cursor-pointer select-none py-3 ml-2 min-w-0"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            handleSelect(node);
+                            if (hasChildren) {
+                                const willBeChecked = (state === 'unchecked' || state === 'indeterminate');
+                                if (willBeChecked && !isExpanded) toggleExpand(node.id); // Aufklappen wenn Haken reinkommt
+                                else if (!willBeChecked && isExpanded) toggleExpand(node.id); // Zuklappen wenn Haken rausgeht
+                            }
+                        }}
+                    >
+                        <span className={`text-[15px] truncate ${state === 'checked' ? 'font-semibold text-foreground' : 'text-foreground/90'}`}>
+                            {node.name}
+                        </span>
+                        
+                        {/* Willhaben-Style: Counts nur für die Top-Level Kategorien anzeigen */}
+                        <span className="ml-2 text-[13px] text-muted-foreground font-medium">
+                            {node.fishCount || 0}
+                        </span>
+                    </div>
                 </div>
 
-                {/* Children Recursion */}
-                <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}`}>
-                    {hasChildren && (
-                        <div className="mt-1">
-                            {relevantChildren.map(child => renderNode(child, depth + 1))}
-                        </div>
-                    )}
-                </div>
+                {/* Sub-Regionen */}
+                {hasChildren && isExpanded && (
+                    <div className="flex flex-col mt-0.5 mb-1 opacity-100">
+                        {children.map(child => renderNode(child, depth + 1))}
+                    </div>
+                )}
             </div>
         );
     };
-
-    const currentRoots = activeTab === 'ort' ? rootsOrt : rootsGebiet;
-    const numSelected = selectedValues.length;
 
     return (
         <div className="w-full">
             <button
                 type="button"
-                onClick={() => setIsOpen(!isOpen)}
+                onClick={() => setIsOpen(true)}
                 disabled={disabled}
-                className={`w-full flex items-center justify-between px-4 py-3 text-left text-sm font-semibold transition-all duration-200
-            ${isOpen ? 'bg-accent text-accent-foreground rounded-t-xl' : 'bg-card text-card-foreground border border-border rounded-xl hover:border-primary/50 hover:shadow-sm'}`}
+                className="w-full flex items-center justify-between px-4 py-3 text-left text-sm font-semibold 
+                           bg-card text-card-foreground border border-border rounded-xl hover:border-primary/50 hover:shadow-sm transition-all duration-200"
             >
-                <span>
-                    Herkunft
-                    {numSelected > 0 && (
-                        <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-primary/20 text-primary">
-                            {numSelected}
+                <span className="flex items-center gap-2">
+                    <span>🌍</span>
+                    <span>Region auswählen</span>
+                    {selectedValues.length > 0 && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-primary/20 text-primary">
+                            {selectedValues.length}
                         </span>
                     )}
                 </span>
-                <ChevronDownIcon className={`w-4 h-4 text-muted-foreground transform transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+                <ChevronDownIcon className="w-4 h-4 text-muted-foreground" />
             </button>
 
-            <Transition
-                as={Fragment}
-                show={isOpen}
-                enter="transition ease-out duration-200"
-                enterFrom="opacity-0 -translate-y-2"
-                enterTo="opacity-100 translate-y-0"
-                leave="transition ease-in duration-150"
-                leaveFrom="opacity-100 translate-y-0"
-                leaveTo="opacity-0 -translate-y-2"
-            >
-                <div className="border-x border-b border-border rounded-b-xl bg-card shadow-sm overflow-hidden">
+            <Transition appear show={isOpen} as={Fragment}>
+                <Dialog as="div" className="relative z-[100]" onClose={() => setIsOpen(false)}>
+                    <Transition.Child
+                        as={Fragment}
+                        enter="ease-out duration-300"
+                        enterFrom="opacity-0"
+                        enterTo="opacity-100"
+                        leave="ease-in duration-200"
+                        leaveFrom="opacity-100"
+                        leaveTo="opacity-0"
+                    >
+                        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" />
+                    </Transition.Child>
 
-                    {/* Tabs Header */}
-                    <div className="flex border-b border-border bg-muted/30">
-                        <button
-                            onClick={() => setActiveTab('ort')}
-                            className={`flex-1 py-2.5 text-xs font-semibold text-center transition-colors relative
-                        ${activeTab === 'ort' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
-                        >
-                            📍 Orte
-                            {activeTab === 'ort' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />}
-                        </button>
-                        <div className="w-px bg-border" />
-                        <button
-                            onClick={() => setActiveTab('gebiet')}
-                            className={`flex-1 py-2.5 text-xs font-semibold text-center transition-colors relative
-                        ${activeTab === 'gebiet' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
-                        >
-                            🗺️ Gebiete
-                            {activeTab === 'gebiet' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />}
-                        </button>
-                    </div>
+                    <div className="fixed inset-0 overflow-y-auto">
+                        <div className="flex min-h-full items-end sm:items-center justify-center p-0 sm:p-4">
+                            <Transition.Child
+                                as={Fragment}
+                                enter="ease-out duration-300"
+                                enterFrom="opacity-0 translate-y-full sm:translate-y-4 sm:scale-95"
+                                enterTo="opacity-100 translate-y-0 sm:scale-100"
+                                leave="ease-in duration-200"
+                                leaveFrom="opacity-100 translate-y-0 sm:scale-100"
+                                leaveTo="opacity-0 translate-y-full sm:translate-y-4 sm:scale-95"
+                            >
+                                <Dialog.Panel className="relative w-full sm:max-w-[560px] h-[95vh] sm:h-[85vh] max-h-[850px] 
+                                                         bg-card sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+                                    
+                                    {/* Modal Header */}
+                                    <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-card shadow-sm z-10">
+                                        <Dialog.Title className="text-xl font-bold text-foreground">
+                                            Region auswählen
+                                        </Dialog.Title>
+                                        <button
+                                            type="button"
+                                            className="p-2 -mr-2 rounded-full hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary/40 text-muted-foreground transition-colors"
+                                            onClick={() => setIsOpen(false)}
+                                        >
+                                            <XMarkIcon className="w-6 h-6" />
+                                        </button>
+                                    </div>
 
-                    <div className="px-4 py-3">
-                        {numSelected > 0 && (
-                            <button type="button" onClick={onResetFilter} className="mb-3 text-xs text-destructive hover:text-destructive/80 flex items-center font-medium" disabled={disabled}>
-                                <XCircleIcon className="w-4 h-4 mr-1" />
-                                Zurücksetzen
-                            </button>
-                        )}
+                                    {/* Modal Body */}
+                                    <div className="flex-1 overflow-y-auto overflow-x-hidden pt-2 pb-4 scrollbar-thin scrollbar-thumb-muted">
+                                        {roots.length === 0 ? (
+                                            <div className="p-8 text-center text-muted-foreground">Keine Regionen verfügbar</div>
+                                        ) : (
+                                            <div className="flex flex-col">
+                                                {roots.map(root => renderNode(root, 0))}
+                                            </div>
+                                        )}
+                                    </div>
 
-                        <div className="max-h-64 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
-                            {/* Render Roots */}
-                            {currentRoots.map(root => renderNode(root))}
+                                    {/* Modal Footer */}
+                                    <div className="flex items-center justify-between px-6 py-4 border-t border-border bg-card z-10">
+                                        <button
+                                            type="button"
+                                            className="text-[15px] font-semibold text-muted-foreground hover:text-foreground hover:bg-muted px-4 py-2.5 rounded-xl transition-all"
+                                            onClick={() => setIsOpen(false)}
+                                        >
+                                            Abbrechen
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="bg-[#0ea5e9] hover:bg-[#0284c7] text-white font-bold px-10 py-3 rounded-xl shadow-lg transition-colors text-[16px]"
+                                            onClick={handleApply}
+                                        >
+                                            Fertig
+                                        </button>
+                                    </div>
+                                    
+                                </Dialog.Panel>
+                            </Transition.Child>
                         </div>
                     </div>
-                </div>
+                </Dialog>
             </Transition>
         </div>
     );
-};
-
-export default OriginFilter;
+}

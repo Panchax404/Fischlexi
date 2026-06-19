@@ -77,13 +77,15 @@ export type FilterState = {
   length?: number; // Mindest-Kantenlänge
 };
 
-// Basic Origin type matching the DB schema
+// Origin type matching the DB schema (with ltree path for hierarchical filtering)
 export type Origin = {
   id: number;
   name: string;
   type: 'continent' | 'country' | 'region' | 'waterbody' | 'other';
   parent_id: number | null;
-  slug?: string;
+  slug: string;
+  path: string; // ltree path as string, e.g. "suedamerika.brasilien"
+  fishCount?: number;
 };
 
 export type FilterOptions = {
@@ -92,6 +94,7 @@ export type FilterOptions = {
   temperatur: string[];
   schwimmhoehe: string[];
   herkunft: Origin[]; // Changed from string[] to full Origin objects
+  crossRefs: OriginCrossRef[]; // Cross-references for multi-parent display
   bounds?: {
     temperatur: { min: number; max: number };
     phWert: { min: number; max: number };
@@ -99,5 +102,11 @@ export type FilterOptions = {
     liters: { min: number; max: number };
     length: { min: number; max: number };
   };
+};
+
+// Cross-reference: An origin that also appears under an additional parent
+export type OriginCrossRef = {
+  origin_id: number;
+  also_appears_under_id: number;
 };
 

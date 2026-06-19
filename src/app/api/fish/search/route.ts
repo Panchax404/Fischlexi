@@ -66,8 +66,18 @@ export async function GET(request: NextRequest) {
       query = query.filter('fish_feeding_categories_map.feeding_category.name', 'in', `(${quotedErnahrungValues.join(',')})`);
     }
     if (herkunftValues && herkunftValues.length > 0) {
-      const quotedHerkunftValues = herkunftValues.map(val => `"${val.replace(/"/g, '""')}"`);
-      query = query.filter('fish_origins.origin.name', 'in', `(${quotedHerkunftValues.join(',')})`);
+      // Slug-based: resolve all selected slugs to descendant origin IDs via ltree
+      const { data: descendantData, error: rpcError } = await supabaseAdmin
+        .rpc('get_descendant_origin_ids_by_slugs', { slugs: herkunftValues });
+
+      if (rpcError) {
+        console.error('[API /search] RPC error for origin descendants:', rpcError);
+      }
+
+      if (descendantData && descendantData.length > 0) {
+        const idsParam = `(${descendantData.map((row: any) => row.id).join(',')})`;
+        query = query.filter('fish_origins.origin_id', 'in', idsParam);
+      }
     }
     if (schwimmhoeheValues && schwimmhoeheValues.length > 0) {
       const quotedSchwimmhoeheValues = schwimmhoeheValues.map(val => `"${val.replace(/"/g, '""')}"`);

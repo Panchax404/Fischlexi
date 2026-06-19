@@ -7,8 +7,10 @@ export async function getFilterOptions() {
         const results = await Promise.all([
             supabaseAdmin.from('keeping_types').select('name').order('name', { ascending: true }),
             supabaseAdmin.from('feeding_categories').select('name').order('name', { ascending: true }),
-            supabaseAdmin.from('origins').select('id, name, origin_type, parent_id, slug').order('name', { ascending: true }),
+            supabaseAdmin.from('origins').select('id, name, origin_type, parent_id, slug, path').order('name', { ascending: true }),
             supabaseAdmin.from('swimming_zones').select('zone_name').order('zone_name', { ascending: true }),
+            // M:N Beziehungen für Gewässer (Ebene 3) -> Länder (Ebene 2)
+            supabaseAdmin.from('waterbody_countries').select('waterbody_id, country_id'),
 
             supabaseAdmin.from('fish').select('water_temperature_min_c').not('water_temperature_min_c', 'is', null).order('water_temperature_min_c', { ascending: true }).limit(1).single(),
             supabaseAdmin.from('fish').select('water_temperature_max_c').not('water_temperature_max_c', 'is', null).order('water_temperature_max_c', { ascending: false }).limit(1).single(),
@@ -23,40 +25,54 @@ export async function getFilterOptions() {
             supabaseAdmin.from('fish').select('aquarium_min_liters').not('aquarium_min_liters', 'is', null).order('aquarium_min_liters', { ascending: false }).limit(1).single(),
 
             supabaseAdmin.from('fish').select('aquarium_min_edge_length_cm').not('aquarium_min_edge_length_cm', 'is', null).order('aquarium_min_edge_length_cm', { ascending: true }).limit(1).single(),
-            supabaseAdmin.from('fish').select('aquarium_min_edge_length_cm').not('aquarium_min_edge_length_cm', 'is', null).order('aquarium_min_edge_length_cm', { ascending: false }).limit(1).single()
+            supabaseAdmin.from('fish').select('aquarium_min_edge_length_cm').not('aquarium_min_edge_length_cm', 'is', null).order('aquarium_min_edge_length_cm', { ascending: false }).limit(1).single(),
+            // Zähler aus der Materialized View
+            supabaseAdmin.from('origin_fish_counts').select('origin_id, published_fish_count')
         ]);
 
         const keepingTypesRes = results[0];
         const feedingCategoriesRes = results[1];
         const originsRes = results[2];
         const swimmingZonesRes = results[3];
+        const crossRefsRes = results[4];
 
         // Helper to extract value or default
         const getVal = (res: any, key: string, def: number) => res.data?.[key] ?? def;
 
-        // Results array mapping (offset by 4 fixed queries)
-        const minTempRes = results[4];
-        const maxTempRes = results[5];
-        const minPhRes = results[6];
-        const maxPhRes = results[7];
-        const minHardnessRes = results[8];
-        const maxHardnessRes = results[9];
-        const minLitersRes = results[10];
-        const maxLitersRes = results[11];
-        const minLengthRes = results[12];
-        const maxLengthRes = results[13];
+        // Results array mapping (offset by 5 fixed queries)
+        const minTempRes = results[5];
+        const maxTempRes = results[6];
+        const minPhRes = results[7];
+        const maxPhRes = results[8];
+        const minHardnessRes = results[9];
+        const maxHardnessRes = results[10];
+        const minLitersRes = results[11];
+        const maxLitersRes = results[12];
+        const minLengthRes = results[13];
+        const maxLengthRes = results[14];
+        const originCountsRes = results[15];
 
         const haltung = keepingTypesRes.data?.map(kt => kt.name) || [];
         const ernahrung = feedingCategoriesRes.data?.map(fc => fc.name) || [];
 
-        // Map DB result to Origin type
+        // Map DB result to Origin type + anheften der fishCounts
+        const originCountsMap = new Map((originCountsRes?.data || []).map((row: any) => [row.origin_id, row.published_fish_count]));
+
         const herkunft = originsRes.data?.map(o => ({
             id: o.id,
             name: o.name,
             type: o.origin_type as any, // Cast specific text to union type
             parent_id: o.parent_id,
-            slug: o.slug
+            slug: o.slug || '',
+            path: (o.path as string) || '', // ltree path as string
+            fishCount: originCountsMap.get(o.id) || 0
         })) || [];
+
+        // Cross-references: waterbodies an Länder binden
+        const crossRefs = (crossRefsRes.data || []).map((cr: any) => ({
+            origin_id: cr.waterbody_id as number,
+            also_appears_under_id: cr.country_id as number
+        }));
 
         const schwimmhoehe = swimmingZonesRes.data?.map(sz => sz.zone_name) || [];
 
@@ -92,6 +108,7 @@ export async function getFilterOptions() {
             temperatur: temperaturOptions,
             schwimmhoehe,
             herkunft,
+            crossRefs,
             bounds
         };
 

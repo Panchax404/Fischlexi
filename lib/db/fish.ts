@@ -55,29 +55,17 @@ export async function searchFish({ q, page = 1, limit = 12, filters = {} }: Sear
             query = query.filter('fish_feeding_categories_map.feeding_category.name', 'in', `(${quoted.join(',')})`);
         }
         if (filters.herkunft && filters.herkunft.length > 0) {
-            // Expand selected origins to include all children
-            const allOriginIds = new Set<number>();
+            // Single batch RPC: resolve all selected slugs to descendant origin IDs
+            // This replaces the old N+1 pattern (one RPC call per selected origin)
+            const { data: descendantData, error: rpcError } = await supabaseAdmin
+                .rpc('get_descendant_origin_ids_by_slugs', { slugs: filters.herkunft });
 
-            // We need to fetch children for each selected ID
-            // Since we can't do this easily in one query without a complex custom RPC taking an array,
-            // we'll execute parallel RPC calls. It's not ideal for massive scale but fine here.
-            await Promise.all(filters.herkunft.map(async (idStr) => {
-                const id = parseInt(idStr);
-                if (!isNaN(id)) {
-                    const { data, error } = await supabaseAdmin.rpc('get_child_origin_ids', { root_id: id });
-                    if (!error && data) {
-                        data.forEach((row: any) => allOriginIds.add(row.id));
-                    } else {
-                        // Fallback: at least include the selected ID itself in case RPC fails/missing
-                        allOriginIds.add(id);
-                    }
-                }
-            }));
+            if (rpcError) {
+                console.error('[searchFish] RPC error for origin descendants:', rpcError);
+            }
 
-            if (allOriginIds.size > 0) {
-                const idsParam = `(${Array.from(allOriginIds).join(',')})`;
-                // We filter on the intermediate table `fish_origins` which links fish and origins.
-                // Assuming column `origin_id` exists in `fish_origins`.
+            if (descendantData && descendantData.length > 0) {
+                const idsParam = `(${descendantData.map((row: any) => row.id).join(',')})`;
                 query = query.filter('fish_origins.origin_id', 'in', idsParam);
             }
         }

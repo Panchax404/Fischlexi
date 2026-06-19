@@ -1,51 +1,60 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Fischlexi
 
-## Getting Started
+Ein Next.js Projekt für das Fischlexi.
 
-First, run the development server:
+## 🚀 Quickstart: Setup auf einem neuen PC
+
+Wenn du das Projekt auf einen neuen PC herunterlädst, folge diesen einfachen Schritten, um es lokal zum Laufen zu bringen.
+
+### 1. Repository klonen und Abhängigkeiten installieren
+
+Öffne dein Terminal und lade das Projekt herunter:
+
+```bash
+git clone <deine-github-repo-url>
+cd Fischlexi
+npm install
+```
+
+### 2. Umgebungsvariablen (Connection Strings) einrichten
+
+Aus Sicherheitsgründen werden die echten Zugangsdaten (Connection Strings) nicht auf GitHub hochgeladen. Du musst sie manuell anlegen:
+
+1. Kopiere die mitgelieferte Vorlagendatei `.env.example` und nenne sie `.env.local`:
+   ```bash
+   cp .env.example .env.local
+   ```
+   *(Unter Windows im Explorer: `.env.example` kopieren und als `.env.local` einfügen)*
+
+2. Öffne die neue `.env.local` Datei und trage deine echten Supabase-Zugangsdaten ein. Diese findest du in deinem Supabase Dashboard. 
+   Die Datei sollte dann in etwa so aussehen:
+   ```env
+   NEXT_PUBLIC_SUPABASE_URL=https://deine-url.supabase.co
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=dein_langer_anon_key
+   SUPABASE_SERVICE_ROLE_KEY=dein_service_role_key
+   SUPABASE_ACCESS_TOKEN=dein_access_token
+   ```
+
+### 3. Entwicklungsserver starten
+
+Sobald die Abhängigkeiten installiert und die `.env.local` Datei angelegt ist, kannst du das Projekt starten:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Öffne nun [http://localhost:3000](http://localhost:3000) in deinem Browser. Das Projekt läuft!
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 🧪 Testing (Playwright)
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-
-## End-to-End Testing
-
-We use [Playwright](https://playwright.dev/) for real browser testing across the application. Wait until your dev server runs (`npm run dev`) before starting the tests.
+Dieses Projekt nutzt [Playwright](https://playwright.dev/) für End-to-End Tests.
 
 ```bash
-# Rufe alle E2E Tests headlessly auf
+# E2E Tests im Hintergrund ausführen (Server muss mit npm run dev laufen!)
 npx playwright test
 
-# Öffne den Playwright UI Mode um Tests visuell durchzuklicken und zu debuggen
+# Playwright UI Mode zum visuellen Debuggen öffnen
 npx playwright test --ui
-
-# Lasse dir einen HTML-Report der letzten Testergebnisse im Browser generieren
-npx playwright show-report
 ```

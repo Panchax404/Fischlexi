@@ -321,6 +321,15 @@ const FilterBar: React.FC<FilterBarProps> = ({ filter, setFilter, options, disab
     });
   };
 
+  const handleMultipleCheckboxChange = (filterKey: CheckboxFilterKeys, values: string[]) => {
+    setFilter(prevFilter => {
+      const updatedFilter = { ...prevFilter };
+      if (values.length === 0) { delete updatedFilter[filterKey]; }
+      else { updatedFilter[filterKey] = values; }
+      return updatedFilter;
+    });
+  };
+
   const handleRangeChange = (key: 'temperatur' | 'phWert' | 'hardness', value: { min: number; max: number } | undefined) => {
     setFilter(prev => {
       const newFilter = { ...prev };
@@ -398,8 +407,10 @@ const FilterBar: React.FC<FilterBarProps> = ({ filter, setFilter, options, disab
         />
         <OriginFilter
           options={options.herkunft || []}
+          crossRefs={options.crossRefs || []}
           selectedValues={filter.herkunft}
           onCheckboxChange={(val) => handleCheckboxChange('herkunft', val)}
+          onMultipleChange={(values) => handleMultipleCheckboxChange('herkunft', values)}
           onResetFilter={() => handleResetFilter('herkunft')}
           disabled={disabled}
         />
