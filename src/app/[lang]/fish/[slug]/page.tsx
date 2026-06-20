@@ -1,27 +1,18 @@
-import React from 'react';
-import { Fish } from '../../../../lib/types';
+import React, { cache } from 'react';
+import { Fish } from '../../../../../lib/types';
 import Link from 'next/link';
 import type { Metadata, ResolvingMetadata } from 'next';
 import Image from 'next/image';
 import { ArrowLeftIcon, MapPinIcon, BeakerIcon, ScaleIcon, FireIcon, CubeIcon, ClockIcon } from '@heroicons/react/24/outline'; // Updated icons
 import { clsx } from 'clsx'; // Assuming clsx is installed or available via lib/utils
+import { getFishDetails } from '../../../../../lib/db/fish';
 
-const APP_BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-
-async function getFishData(slugParam: string): Promise<Fish | null> {
-  try {
-    const absoluteApiUrl = `${APP_BASE_URL}/api/fish/details/${encodeURIComponent(slugParam)}`;
-    const res = await fetch(absoluteApiUrl, { cache: 'no-store' });
-    if (!res.ok) return null;
-    return await res.json();
-  } catch (error) {
-    console.error(`[getFishData] Error for slug "${slugParam}":`, error);
-    return null;
-  }
-}
+const getFishData = cache(async (slugParam: string, lang: string): Promise<any | null> => {
+  return await getFishDetails(slugParam, lang);
+});
 
 type FishDetailPageProps = {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ lang: string; slug: string }>;
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 };
 
@@ -30,7 +21,7 @@ export async function generateMetadata(
   parent: ResolvingMetadata
 ): Promise<Metadata> {
   const params = await paramsProp;
-  const fish = await getFishData(params.slug);
+  const fish = await getFishData(params.slug, params.lang);
 
   if (!fish) {
     return {
@@ -77,7 +68,7 @@ const SectionCard = ({ title, content }: { title: string, content: string }) => 
 export default async function FishDetailPage({ params: paramsProp, searchParams: searchParamsProp }: FishDetailPageProps) {
   const params = await paramsProp;
   const searchParams = await searchParamsProp;
-  const fish = await getFishData(params.slug);
+  const fish = await getFishData(params.slug, params.lang);
 
   if (!fish) {
     return (

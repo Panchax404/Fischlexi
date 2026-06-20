@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
 import { Outfit } from 'next/font/google';
-import './globals.css';
-import { ThemeProvider } from '../../components/ThemeProvider';
-import { ThemeSwitcher } from '../../components/ThemeSwitcher';
+import '../globals.css';
+import { ThemeProvider } from '../../../components/ThemeProvider';
+import { ThemeSwitcher } from '../../../components/ThemeSwitcher';
+import { LanguageSwitcher } from '../../../components/LanguageSwitcher';
 import Link from 'next/link';
 
 const outfit = Outfit({
@@ -16,20 +17,23 @@ export const metadata: Metadata = {
   description: 'Dein modernes Nachschlagewerk für die Aquaristik.',
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
+  params,
 }: {
   children: React.ReactNode;
+  params: Promise<{ lang: string }>;
 }) {
+  const { lang } = await params;
   return (
-    <html lang="de" suppressHydrationWarning data-scroll-behavior="smooth">
+    <html lang={lang} suppressHydrationWarning data-scroll-behavior="smooth">
       <body className={`${outfit.variable} font-sans min-h-screen bg-background text-foreground antialiased`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem themes={['light', 'dark']}>
 
           {/* Header */}
           <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
             <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-              <Link href="/" className="flex items-center space-x-2">
+              <Link href={`/${lang}`} className="flex items-center space-x-2">
                 <span className="text-2xl font-bold bg-gradient-to-r from-primary to-cyan-400 bg-clip-text text-transparent">
                   Fischlexi
                 </span>
@@ -37,6 +41,7 @@ export default function RootLayout({
 
               <div className="flex items-center space-x-4">
                 {/* Add Nav Links here later */}
+                <LanguageSwitcher />
                 <ThemeSwitcher />
               </div>
             </div>

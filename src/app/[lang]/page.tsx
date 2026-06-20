@@ -1,13 +1,13 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
-import SearchControls from '../../components/SearchControls';
-import FishCard from '../../components/FishCard';
-import Pagination from '../../components/Pagination';
-import LoadingSpinner from '../../components/LoadingSpinner';
-import HeroSection from '../../components/HeroSection';
-import { getFilterOptions } from '../../lib/db/options';
-import { searchFish } from '../../lib/db/fish';
-import { parseSearchParams } from '../../lib/searchParamsUtils';
+import SearchControls from '../../../components/SearchControls';
+import FishCard from '../../../components/FishCard';
+import Pagination from '../../../components/Pagination';
+import LoadingSpinner from '../../../components/LoadingSpinner';
+import HeroSection from '../../../components/HeroSection';
+import { getFilterOptions } from '../../../lib/db/options';
+import { searchFish } from '../../../lib/db/fish';
+import { parseSearchParams } from '../../../lib/searchParamsUtils';
 
 export const metadata: Metadata = {
   title: 'Fischlexikon - Suche',
@@ -15,11 +15,13 @@ export const metadata: Metadata = {
 };
 
 export default async function Page({
+  params,
   searchParams,
 }: {
+  params: Promise<{ lang: string }>;
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const resolvedParams = await searchParams;
+  const [{ lang }, resolvedParams] = await Promise.all([params, searchParams]);
   const filters = parseSearchParams(resolvedParams);
   const q = typeof resolvedParams.q === 'string' ? resolvedParams.q : '';
   const page = typeof resolvedParams.page === 'string' ? parseInt(resolvedParams.page, 10) : 1;
@@ -27,23 +29,23 @@ export default async function Page({
   // Parallel data fetching
   const [filterOptionsData, searchResult] = await Promise.all([
     getFilterOptions(),
-    searchFish({ q, page, limit: 12, filters }),
+    searchFish({ q, lang, page, limit: 12, filters }),
   ]);
 
   const { data: fishList, pagination } = searchResult;
 
   // Reconstruct base URL for pagination
-  const params = new URLSearchParams();
+  const queryParams = new URLSearchParams();
   Object.entries(resolvedParams).forEach(([key, value]) => {
     if (key !== 'page' && value !== undefined) {
       if (Array.isArray(value)) {
-        value.forEach(v => params.append(key, v));
+        value.forEach(v => queryParams.append(key, v));
       } else {
-        params.append(key, value);
+        queryParams.append(key, value);
       }
     }
   });
-  const baseUrl = `/?${params.toString()}`;
+  const baseUrl = `/${lang}?${queryParams.toString()}`;
 
   return (
     <>
@@ -81,7 +83,7 @@ export default async function Page({
                     key={fish.id}
                     fish={fish}
                     activeFilters={filters}
-                    searchQueryFromCaller={params.toString()}
+                    searchQueryFromCaller={queryParams.toString()}
                   />
                 ))}
               </div>

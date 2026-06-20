@@ -69,3 +69,4 @@ docs/
 *.log
 supabase/.temp/
 supabase/*.sql
+supabase/migrations/*.sql

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import FilterBar from "./FilterBar";
 import type { FilterState } from '../lib/types';
 import { MagnifyingGlassIcon } from '@heroicons/react/24/outline'; // Need check if available, assuming yes
@@ -53,6 +53,7 @@ const buildUrlQueryString = (
 
 export default function SearchControls({ initialOptions, initialFilters, initialQuery }: SearchControlsProps) {
     const router = useRouter();
+    const pathname = usePathname();
     const [isPending, startTransition] = useTransition();
 
     const [searchQueryInput, setSearchQueryInput] = useState(initialQuery);
@@ -74,11 +75,11 @@ export default function SearchControls({ initialOptions, initialFilters, initial
             return;
         }
         const queryString = buildUrlQueryString(debouncedSearchQueryInput, filters);
-        const newPath = `/${queryString ? `?${queryString}` : ''}`;
+        const newPath = `${pathname}${queryString ? `?${queryString}` : ''}`;
         startTransition(() => {
             router.push(newPath, { scroll: false });
         });
-    }, [debouncedSearchQueryInput, filters, router]);
+    }, [debouncedSearchQueryInput, filters, router, pathname]);
 
     const handleFilterChange = (newFilterOrUpdater: FilterState | ((prevState: FilterState) => FilterState)) => {
         setFilters(newFilterOrUpdater);

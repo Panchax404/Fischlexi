@@ -1,8 +1,9 @@
 import { getSupabaseAdmin } from '../supabaseClient'; // Pfad ggf. anpassen, je nachdem wo die Datei landet
+import { unstable_cache } from 'next/cache';
 
 const supabaseAdmin = getSupabaseAdmin();
 
-export async function getFilterOptions() {
+export const getFilterOptions = unstable_cache(async () => {
     try {
         const results = await Promise.all([
             supabaseAdmin.from('keeping_types').select('name').order('name', { ascending: true }),
@@ -116,4 +117,4 @@ export async function getFilterOptions() {
         console.error("[getFilterOptions] Error:", error);
         throw new Error(error.message || "Failed to fetch filter options");
     }
-}
+}, ['filter-options-cache'], { revalidate: 3600, tags: ['filter-options'] });

@@ -10,6 +10,7 @@ export async function GET(request: NextRequest) {
 
     // Parameter aus der URL lesen
     const q = searchParams.get('q');
+    const lang = searchParams.get('lang') || 'de';
     const page = parseInt(searchParams.get('page') || '1', 10);
     const limit = parseInt(searchParams.get('limit') || '12', 10);
     const offset = (page - 1) * limit;
@@ -33,89 +34,81 @@ export async function GET(request: NextRequest) {
     // const temperaturFilter = searchParams.get('temperatur'); // Nicht mehr benötigt, wenn temp_min/temp_max verwendet werden
 
     let query = supabaseAdmin
-      .from('fish')
+      .from('fish_translations')
       .select(`
-        id, name, slug, latin_name, 
-        image_url_main, 
-        size_cm_min, size_cm_max, 
-        water_temperature_min_c, water_temperature_max_c,
-        description_general,
-        primary_habitat:habitats (id, name),
-        fish_origins:fish_origins!inner (origin:origins!inner (name)),
-        fish_keeping_types:fish_keeping_types!inner (keeping_type:keeping_types!inner (name)),
-        fish_feeding_categories_map:fish_feeding_categories_map!inner (feeding_category:feeding_categories!inner (name)),
-        fish_swimming_zones:fish_swimming_zones!inner (swimming_zone:swimming_zones!inner (zone_name))
+        name, slug, description_general,
+        fish!inner(
+          id, latin_name, 
+          image_url_main, 
+          size_cm_min, size_cm_max, 
+          water_temperature_min_c, water_temperature_max_c,
+          primary_habitat:habitats (id, name),
+          fish_origins:fish_origins!inner (origin:origins!inner (name)),
+          fish_keeping_types:fish_keeping_types!inner (keeping_type:keeping_types!inner (name)),
+          fish_feeding_categories_map:fish_feeding_categories_map!inner (feeding_category:feeding_categories!inner (name)),
+          fish_swimming_zones:fish_swimming_zones!inner (swimming_zone:swimming_zones!inner (zone_name))
+        )
       `, { count: 'exact' })
-      .eq('is_published', true);
+      .eq('language_code', lang)
+      .eq('fish.is_published', true);
 
     // Textsuche (q)
     if (q && q.trim()) {
       const searchTerm = q.trim();
+      // Simple ilike on translations for now. PostgREST allows filtering inner joins too.
       query = query.or(
-        `name.ilike.%${searchTerm}%,latin_name.ilike.%${searchTerm}%,description_general.ilike.%${searchTerm}%`
+        `name.ilike.%${searchTerm}%,description_general.ilike.%${searchTerm}%,fish.latin_name.ilike.%${searchTerm}%`
       );
     }
 
     // Filter für Many-to-Many Relationen
     if (haltungValues && haltungValues.length > 0) {
-      const quotedHaltungValues = haltungValues.map(val => `"${val.replace(/"/g, '""')}"`); // Doppelte Anführungszeichen im Wert escapen
-      query = query.filter('fish_keeping_types.keeping_type.name', 'in', `(${quotedHaltungValues.join(',')})`);
+      const quotedHaltungValues = haltungValues.map(val => `"${val.replace(/"/g, '""')}"`);
+      query = query.filter('fish.fish_keeping_types.keeping_type.name', 'in', `(${quotedHaltungValues.join(',')})`);
     }
     if (ernahrungValues && ernahrungValues.length > 0) {
       const quotedErnahrungValues = ernahrungValues.map(val => `"${val.replace(/"/g, '""')}"`);
-      query = query.filter('fish_feeding_categories_map.feeding_category.name', 'in', `(${quotedErnahrungValues.join(',')})`);
+      query = query.filter('fish.fish_feeding_categories_map.feeding_category.name', 'in', `(${quotedErnahrungValues.join(',')})`);
     }
     if (herkunftValues && herkunftValues.length > 0) {
-      // Slug-based: resolve all selected slugs to descendant origin IDs via ltree
       const { data: descendantData, error: rpcError } = await supabaseAdmin
         .rpc('get_descendant_origin_ids_by_slugs', { slugs: herkunftValues });
 
-      if (rpcError) {
-        console.error('[API /search] RPC error for origin descendants:', rpcError);
-      }
+      if (rpcError) console.error('[API /search] RPC error:', rpcError);
 
       if (descendantData && descendantData.length > 0) {
         const idsParam = `(${descendantData.map((row: any) => row.id).join(',')})`;
-        query = query.filter('fish_origins.origin_id', 'in', idsParam);
+        query = query.filter('fish.fish_origins.origin_id', 'in', idsParam);
       }
     }
     if (schwimmhoeheValues && schwimmhoeheValues.length > 0) {
       const quotedSchwimmhoeheValues = schwimmhoeheValues.map(val => `"${val.replace(/"/g, '""')}"`);
-      query = query.filter('fish_swimming_zones.swimming_zone.zone_name', 'in', `(${quotedSchwimmhoeheValues.join(',')})`);
+      query = query.filter('fish.fish_swimming_zones.swimming_zone.zone_name', 'in', `(${quotedSchwimmhoeheValues.join(',')})`);
     }
 
-    // Temperaturfilter basierend auf temp_min und temp_max (von Range Slider)
     if (tempMinParam !== null && tempMaxParam !== null) {
         const filterMin = parseFloat(tempMinParam);
         const filterMax = parseFloat(tempMaxParam);
         if (!isNaN(filterMin) && !isNaN(filterMax)) {
-            // Überlappungslogik: Fischbereich überlappt mit Filterbereich
-            // fish.min_temp <= filter.max_temp AND fish.max_temp >= filter.min_temp
-            query = query.lte('water_temperature_min_c', filterMax)
-                         .gte('water_temperature_max_c', filterMin);
+            query = query.lte('fish.water_temperature_min_c', filterMax)
+                         .gte('fish.water_temperature_max_c', filterMin);
         }
-    } else if (tempMinParam !== null) { // Nur Mindesttemperatur gefiltert
+    } else if (tempMinParam !== null) {
         const filterMin = parseFloat(tempMinParam);
-        if (!isNaN(filterMin)) {
-            query = query.gte('water_temperature_max_c', filterMin); // Fische, deren Max-Temp >= Filter-Min ist
-        }
-    } else if (tempMaxParam !== null) { // Nur Maximaltemperatur gefiltert
+        if (!isNaN(filterMin)) query = query.gte('fish.water_temperature_max_c', filterMin);
+    } else if (tempMaxParam !== null) {
         const filterMax = parseFloat(tempMaxParam);
-        if (!isNaN(filterMax)) {
-            query = query.lte('water_temperature_min_c', filterMax); // Fische, deren Min-Temp <= Filter-Max ist
-        }
+        if (!isNaN(filterMax)) query = query.lte('fish.water_temperature_min_c', filterMax);
     }
     if (phMinParam && phMaxParam) {
         const filterMin = parseFloat(phMinParam);
         const filterMax = parseFloat(phMaxParam);
-        // Finde Fische, deren pH-Bereich [fish.water_ph_min, fish.water_ph_max]
-        // sich mit dem ausgewählten Bereich [filterMin, filterMax] überlappt.
-        query = query.lte('water_ph_min', filterMax) // Fisch min pH <= Filter max pH
-                     .gte('water_ph_max', filterMin); // Fisch max pH >= Filter min pH
-    } else if (phMinParam) { // Nur Mindest-pH gefiltert
-        query = query.gte('water_ph_max', parseFloat(phMinParam));
-    } else if (phMaxParam) { // Nur Maximal-pH gefiltert
-        query = query.lte('water_ph_min', parseFloat(phMaxParam));
+        query = query.lte('fish.water_ph_min', filterMax)
+                     .gte('fish.water_ph_max', filterMin);
+    } else if (phMinParam) {
+        query = query.gte('fish.water_ph_max', parseFloat(phMinParam));
+    } else if (phMaxParam) {
+        query = query.lte('fish.water_ph_min', parseFloat(phMaxParam));
     }
 
     query = query.order('name', { ascending: true }).range(offset, offset + limit - 1);
@@ -136,25 +129,26 @@ export async function GET(request: NextRequest) {
         return [];
     };
 
-    const transformedFishList = fishListFromDb?.map(fishFromDb => {
+    const transformedFishList = fishListFromDb?.map((t: any) => {
+      const f = t.fish;
       return {
-        id: fishFromDb.id,
-        name: fishFromDb.name,
-        slug: fishFromDb.slug,
-        latin_name: fishFromDb.latin_name,
-        image_url_main: fishFromDb.image_url_main,
-        description_general: fishFromDb.description_general,
-        habitat: (fishFromDb as any).primary_habitat?.name || null,
-        herkunft: getArrayOfNames((fishFromDb as any).fish_origins, 'origin'),
-        haltung: getArrayOfNames((fishFromDb as any).fish_keeping_types, 'keeping_type'),
-        ernahrung: getArrayOfNames((fishFromDb as any).fish_feeding_categories_map, 'feeding_category'),
-        schwimmhoehe: getArrayOfNames((fishFromDb as any).fish_swimming_zones, 'swimming_zone', 'zone_name'),
-        size: (fishFromDb.size_cm_min && fishFromDb.size_cm_max)
-          ? `${fishFromDb.size_cm_min} - ${fishFromDb.size_cm_max} cm`
-          : (fishFromDb.size_cm_max ? `bis ${fishFromDb.size_cm_max} cm` : 'N/A'),
-        temperatur: (fishFromDb.water_temperature_min_c && fishFromDb.water_temperature_max_c)
-          ? `${fishFromDb.water_temperature_min_c}-${fishFromDb.water_temperature_max_c}°C`
-          : (fishFromDb.water_temperature_min_c ? `${fishFromDb.water_temperature_min_c}°C` : 'N/A'),
+        id: f.id,
+        name: t.name,
+        slug: t.slug,
+        latin_name: f.latin_name,
+        image_url_main: f.image_url_main,
+        description_general: t.description_general,
+        habitat: f.primary_habitat?.name || null,
+        herkunft: getArrayOfNames(f.fish_origins, 'origin'),
+        haltung: getArrayOfNames(f.fish_keeping_types, 'keeping_type'),
+        ernahrung: getArrayOfNames(f.fish_feeding_categories_map, 'feeding_category'),
+        schwimmhoehe: getArrayOfNames(f.fish_swimming_zones, 'swimming_zone', 'zone_name'),
+        size: (f.size_cm_min && f.size_cm_max)
+          ? `${f.size_cm_min} - ${f.size_cm_max} cm`
+          : (f.size_cm_max ? `bis ${f.size_cm_max} cm` : 'N/A'),
+        temperatur: (f.water_temperature_min_c && f.water_temperature_max_c)
+          ? `${f.water_temperature_min_c}-${f.water_temperature_max_c}°C`
+          : (f.water_temperature_min_c ? `${f.water_temperature_min_c}°C` : 'N/A'),
       };
     }) || [];
 

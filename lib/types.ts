@@ -49,10 +49,10 @@ export type Fish = {
   lifespan?: string; // z.B. "3 - 5 Jahre"
   common_names?: string; // joined string
 
-  is_published: boolean;
+  is_published?: boolean;
   author_notes?: string | null;
-  created_at: string;
-  updated_at: string;
+  created_at?: string;
+  updated_at?: string;
 
   // Felder, die durch Joins von der API gefüllt und transformiert werden
   habitat?: string | null;
