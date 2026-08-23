@@ -26,13 +26,30 @@ export default async function Page({
   const q = typeof resolvedParams.q === 'string' ? resolvedParams.q : '';
   const page = typeof resolvedParams.page === 'string' ? parseInt(resolvedParams.page, 10) : 1;
 
-  // Parallel data fetching
-  const [filterOptionsData, searchResult] = await Promise.all([
+  // Entkoppeltes paralleles Fetching: ein Ausfall der Filter-Optionen darf
+  // die Ergebnisliste nicht mitreißen (und umgekehrt).
+  const [filterOptionsSettled, searchSettled] = await Promise.allSettled([
     getFilterOptions(),
     searchFish({ q, lang, page, limit: 12, filters }),
   ]);
 
-  const { data: fishList, pagination } = searchResult;
+  if (filterOptionsSettled.status === 'rejected') {
+    console.error('[page] getFilterOptions failed:', filterOptionsSettled.reason);
+  }
+
+  // Filter-Optionen degradieren zu leeren Listen; die Seite bleibt bedienbar.
+  const filterOptionsData =
+    filterOptionsSettled.status === 'fulfilled'
+      ? filterOptionsSettled.value
+      : { haltung: [], ernahrung: [], temperatur: [], schwimmhoehe: [], herkunft: [], crossRefs: [] };
+
+  // Ein Suchfehler eskaliert bewusst an die error.tsx-Boundary dieses Segments,
+  // damit Layout, Header und Footer erhalten bleiben.
+  if (searchSettled.status === 'rejected') {
+    throw searchSettled.reason;
+  }
+
+  const { data: fishList, pagination } = searchSettled.value;
 
   // Reconstruct base URL for pagination
   const queryParams = new URLSearchParams();
@@ -82,6 +99,7 @@ export default async function Page({
                   <FishCard
                     key={fish.id}
                     fish={fish}
+                    lang={lang}
                     activeFilters={filters}
                     searchQueryFromCaller={queryParams.toString()}
                   />

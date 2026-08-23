@@ -67,13 +67,7 @@ export type Database = {
           aquarium_min_edge_length_cm: number | null
           aquarium_min_liters: number | null
           author_notes: string | null
-          common_other_names: string[] | null
           created_at: string
-          description_breeding: string | null
-          description_care_aquarium: string | null
-          description_general: string | null
-          description_habitat_details: string | null
-          description_social_behavior: string | null
           difficulty_level_id: number | null
           id: number
           image_gallery_urls: string[] | null
@@ -82,12 +76,9 @@ export type Database = {
           latin_name: string | null
           lifespan_years_max: number | null
           lifespan_years_min: number | null
-          name: string
           primary_habitat_id: number | null
-          search_vector: unknown
           size_cm_max: number | null
           size_cm_min: number | null
-          slug: string
           taxonomy_id: number | null
           updated_at: string
           water_hardness_dh_max: number | null
@@ -101,13 +92,7 @@ export type Database = {
           aquarium_min_edge_length_cm?: number | null
           aquarium_min_liters?: number | null
           author_notes?: string | null
-          common_other_names?: string[] | null
           created_at?: string
-          description_breeding?: string | null
-          description_care_aquarium?: string | null
-          description_general?: string | null
-          description_habitat_details?: string | null
-          description_social_behavior?: string | null
           difficulty_level_id?: number | null
           id?: number
           image_gallery_urls?: string[] | null
@@ -116,12 +101,9 @@ export type Database = {
           latin_name?: string | null
           lifespan_years_max?: number | null
           lifespan_years_min?: number | null
-          name: string
           primary_habitat_id?: number | null
-          search_vector?: unknown
           size_cm_max?: number | null
           size_cm_min?: number | null
-          slug: string
           taxonomy_id?: number | null
           updated_at?: string
           water_hardness_dh_max?: number | null
@@ -135,13 +117,7 @@ export type Database = {
           aquarium_min_edge_length_cm?: number | null
           aquarium_min_liters?: number | null
           author_notes?: string | null
-          common_other_names?: string[] | null
           created_at?: string
-          description_breeding?: string | null
-          description_care_aquarium?: string | null
-          description_general?: string | null
-          description_habitat_details?: string | null
-          description_social_behavior?: string | null
           difficulty_level_id?: number | null
           id?: number
           image_gallery_urls?: string[] | null
@@ -150,12 +126,9 @@ export type Database = {
           latin_name?: string | null
           lifespan_years_max?: number | null
           lifespan_years_min?: number | null
-          name?: string
           primary_habitat_id?: number | null
-          search_vector?: unknown
           size_cm_max?: number | null
           size_cm_min?: number | null
-          slug?: string
           taxonomy_id?: number | null
           updated_at?: string
           water_hardness_dh_max?: number | null
@@ -316,6 +289,13 @@ export type Database = {
             foreignKeyName: "fish_origins_origin_id_fkey"
             columns: ["origin_id"]
             isOneToOne: false
+            referencedRelation: "origin_fish_counts"
+            referencedColumns: ["origin_id"]
+          },
+          {
+            foreignKeyName: "fish_origins_origin_id_fkey"
+            columns: ["origin_id"]
+            isOneToOne: false
             referencedRelation: "origins"
             referencedColumns: ["id"]
           },
@@ -380,68 +360,61 @@ export type Database = {
           },
         ]
       }
-      origin_cross_references: {
+      fish_translations: {
         Row: {
-          origin_id: number
-          also_appears_under_id: number
+          common_other_names: string[] | null
           created_at: string
+          description_breeding: string | null
+          description_care_aquarium: string | null
+          description_general: string | null
+          description_habitat_details: string | null
+          description_social_behavior: string | null
+          fish_id: number
+          id: number
+          language_code: string
+          name: string
+          search_vector: unknown
+          slug: string
+          updated_at: string
         }
         Insert: {
-          origin_id: number
-          also_appears_under_id: number
+          common_other_names?: string[] | null
           created_at?: string
+          description_breeding?: string | null
+          description_care_aquarium?: string | null
+          description_general?: string | null
+          description_habitat_details?: string | null
+          description_social_behavior?: string | null
+          fish_id: number
+          id?: number
+          language_code: string
+          name: string
+          search_vector?: unknown
+          slug: string
+          updated_at?: string
         }
         Update: {
-          origin_id?: number
-          also_appears_under_id?: number
+          common_other_names?: string[] | null
           created_at?: string
+          description_breeding?: string | null
+          description_care_aquarium?: string | null
+          description_general?: string | null
+          description_habitat_details?: string | null
+          description_social_behavior?: string | null
+          fish_id?: number
+          id?: number
+          language_code?: string
+          name?: string
+          search_vector?: unknown
+          slug?: string
+          updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "origin_cross_references_origin_id_fkey"
-            columns: ["origin_id"]
+            foreignKeyName: "fish_translations_fish_id_fkey"
+            columns: ["fish_id"]
             isOneToOne: false
-            referencedRelation: "origins"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "origin_cross_references_also_appears_under_id_fkey"
-            columns: ["also_appears_under_id"]
-            isOneToOne: false
-            referencedRelation: "origins"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      waterbody_countries: {
-        Row: {
-          waterbody_id: number
-          country_id: number
-          created_at: string
-        }
-        Insert: {
-          waterbody_id: number
-          country_id: number
-          created_at?: string
-        }
-        Update: {
-          waterbody_id?: number
-          country_id?: number
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "waterbody_countries_waterbody_id_fkey"
-            columns: ["waterbody_id"]
-            isOneToOne: false
-            referencedRelation: "origins"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "waterbody_countries_country_id_fkey"
-            columns: ["country_id"]
-            isOneToOne: false
-            referencedRelation: "origins"
+            referencedRelation: "fish"
             referencedColumns: ["id"]
           },
         ]
@@ -550,6 +523,53 @@ export type Database = {
         }
         Relationships: []
       }
+      origin_cross_references: {
+        Row: {
+          also_appears_under_id: number
+          created_at: string
+          origin_id: number
+        }
+        Insert: {
+          also_appears_under_id: number
+          created_at?: string
+          origin_id: number
+        }
+        Update: {
+          also_appears_under_id?: number
+          created_at?: string
+          origin_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "origin_cross_references_also_appears_under_id_fkey"
+            columns: ["also_appears_under_id"]
+            isOneToOne: false
+            referencedRelation: "origin_fish_counts"
+            referencedColumns: ["origin_id"]
+          },
+          {
+            foreignKeyName: "origin_cross_references_also_appears_under_id_fkey"
+            columns: ["also_appears_under_id"]
+            isOneToOne: false
+            referencedRelation: "origins"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "origin_cross_references_origin_id_fkey"
+            columns: ["origin_id"]
+            isOneToOne: false
+            referencedRelation: "origin_fish_counts"
+            referencedColumns: ["origin_id"]
+          },
+          {
+            foreignKeyName: "origin_cross_references_origin_id_fkey"
+            columns: ["origin_id"]
+            isOneToOne: false
+            referencedRelation: "origins"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       origins: {
         Row: {
           created_at: string
@@ -582,6 +602,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "origins_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "origin_fish_counts"
+            referencedColumns: ["origin_id"]
+          },
           {
             foreignKeyName: "origins_parent_id_fkey"
             columns: ["parent_id"]
@@ -651,11 +678,70 @@ export type Database = {
         }
         Relationships: []
       }
+      waterbody_countries: {
+        Row: {
+          country_id: number
+          created_at: string | null
+          waterbody_id: number
+        }
+        Insert: {
+          country_id: number
+          created_at?: string | null
+          waterbody_id: number
+        }
+        Update: {
+          country_id?: number
+          created_at?: string | null
+          waterbody_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "waterbody_countries_country_id_fkey"
+            columns: ["country_id"]
+            isOneToOne: false
+            referencedRelation: "origin_fish_counts"
+            referencedColumns: ["origin_id"]
+          },
+          {
+            foreignKeyName: "waterbody_countries_country_id_fkey"
+            columns: ["country_id"]
+            isOneToOne: false
+            referencedRelation: "origins"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "waterbody_countries_waterbody_id_fkey"
+            columns: ["waterbody_id"]
+            isOneToOne: false
+            referencedRelation: "origin_fish_counts"
+            referencedColumns: ["origin_id"]
+          },
+          {
+            foreignKeyName: "waterbody_countries_waterbody_id_fkey"
+            columns: ["waterbody_id"]
+            isOneToOne: false
+            referencedRelation: "origins"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
-      [_ in never]: never
+      origin_fish_counts: {
+        Row: {
+          origin_id: number | null
+          published_fish_count: number | null
+          slug: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      generate_origin_path_label: {
+        Args: { name_input: string }
+        Returns: string
+      }
+      generate_origin_slug: { Args: { name_input: string }; Returns: string }
       get_child_origin_ids: {
         Args: { root_id: number }
         Returns: {
@@ -669,6 +755,7 @@ export type Database = {
         }[]
       }
       is_admin: { Args: never; Returns: boolean }
+      transliterate_german: { Args: { input: string }; Returns: string }
     }
     Enums: {
       [_ in never]: never
@@ -801,3 +888,4 @@ export const Constants = {
     Enums: {},
   },
 } as const
+

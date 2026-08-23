@@ -1,34 +1,34 @@
-import { getSupabaseAdmin } from '../supabaseClient'; // Pfad ggf. anpassen, je nachdem wo die Datei landet
+import { getSupabasePublic } from '../supabaseClient'; // Pfad ggf. anpassen, je nachdem wo die Datei landet
 import { unstable_cache } from 'next/cache';
 
-const supabaseAdmin = getSupabaseAdmin();
+const supabasePublic = getSupabasePublic();
 
 export const getFilterOptions = unstable_cache(async () => {
     try {
         const results = await Promise.all([
-            supabaseAdmin.from('keeping_types').select('name').order('name', { ascending: true }),
-            supabaseAdmin.from('feeding_categories').select('name').order('name', { ascending: true }),
-            supabaseAdmin.from('origins').select('id, name, origin_type, parent_id, slug, path').order('name', { ascending: true }),
-            supabaseAdmin.from('swimming_zones').select('zone_name').order('zone_name', { ascending: true }),
+            supabasePublic.from('keeping_types').select('name').order('name', { ascending: true }),
+            supabasePublic.from('feeding_categories').select('name').order('name', { ascending: true }),
+            supabasePublic.from('origins').select('id, name, origin_type, parent_id, slug, path').order('name', { ascending: true }),
+            supabasePublic.from('swimming_zones').select('zone_name').order('zone_name', { ascending: true }),
             // M:N Beziehungen für Gewässer (Ebene 3) -> Länder (Ebene 2)
-            supabaseAdmin.from('waterbody_countries').select('waterbody_id, country_id'),
+            supabasePublic.from('waterbody_countries').select('waterbody_id, country_id'),
 
-            supabaseAdmin.from('fish').select('water_temperature_min_c').not('water_temperature_min_c', 'is', null).order('water_temperature_min_c', { ascending: true }).limit(1).single(),
-            supabaseAdmin.from('fish').select('water_temperature_max_c').not('water_temperature_max_c', 'is', null).order('water_temperature_max_c', { ascending: false }).limit(1).single(),
+            supabasePublic.from('fish').select('water_temperature_min_c').not('water_temperature_min_c', 'is', null).order('water_temperature_min_c', { ascending: true }).limit(1).single(),
+            supabasePublic.from('fish').select('water_temperature_max_c').not('water_temperature_max_c', 'is', null).order('water_temperature_max_c', { ascending: false }).limit(1).single(),
 
-            supabaseAdmin.from('fish').select('water_ph_min').not('water_ph_min', 'is', null).order('water_ph_min', { ascending: true }).limit(1).single(),
-            supabaseAdmin.from('fish').select('water_ph_max').not('water_ph_max', 'is', null).order('water_ph_max', { ascending: false }).limit(1).single(),
+            supabasePublic.from('fish').select('water_ph_min').not('water_ph_min', 'is', null).order('water_ph_min', { ascending: true }).limit(1).single(),
+            supabasePublic.from('fish').select('water_ph_max').not('water_ph_max', 'is', null).order('water_ph_max', { ascending: false }).limit(1).single(),
 
-            supabaseAdmin.from('fish').select('water_hardness_dh_min').not('water_hardness_dh_min', 'is', null).order('water_hardness_dh_min', { ascending: true }).limit(1).single(),
-            supabaseAdmin.from('fish').select('water_hardness_dh_max').not('water_hardness_dh_max', 'is', null).order('water_hardness_dh_max', { ascending: false }).limit(1).single(),
+            supabasePublic.from('fish').select('water_hardness_dh_min').not('water_hardness_dh_min', 'is', null).order('water_hardness_dh_min', { ascending: true }).limit(1).single(),
+            supabasePublic.from('fish').select('water_hardness_dh_max').not('water_hardness_dh_max', 'is', null).order('water_hardness_dh_max', { ascending: false }).limit(1).single(),
 
-            supabaseAdmin.from('fish').select('aquarium_min_liters').not('aquarium_min_liters', 'is', null).order('aquarium_min_liters', { ascending: true }).limit(1).single(),
-            supabaseAdmin.from('fish').select('aquarium_min_liters').not('aquarium_min_liters', 'is', null).order('aquarium_min_liters', { ascending: false }).limit(1).single(),
+            supabasePublic.from('fish').select('aquarium_min_liters').not('aquarium_min_liters', 'is', null).order('aquarium_min_liters', { ascending: true }).limit(1).single(),
+            supabasePublic.from('fish').select('aquarium_min_liters').not('aquarium_min_liters', 'is', null).order('aquarium_min_liters', { ascending: false }).limit(1).single(),
 
-            supabaseAdmin.from('fish').select('aquarium_min_edge_length_cm').not('aquarium_min_edge_length_cm', 'is', null).order('aquarium_min_edge_length_cm', { ascending: true }).limit(1).single(),
-            supabaseAdmin.from('fish').select('aquarium_min_edge_length_cm').not('aquarium_min_edge_length_cm', 'is', null).order('aquarium_min_edge_length_cm', { ascending: false }).limit(1).single(),
+            supabasePublic.from('fish').select('aquarium_min_edge_length_cm').not('aquarium_min_edge_length_cm', 'is', null).order('aquarium_min_edge_length_cm', { ascending: true }).limit(1).single(),
+            supabasePublic.from('fish').select('aquarium_min_edge_length_cm').not('aquarium_min_edge_length_cm', 'is', null).order('aquarium_min_edge_length_cm', { ascending: false }).limit(1).single(),
             // Zähler aus der Materialized View
-            supabaseAdmin.from('origin_fish_counts').select('origin_id, published_fish_count')
+            supabasePublic.from('origin_fish_counts').select('origin_id, published_fish_count')
         ]);
 
         const keepingTypesRes = results[0];

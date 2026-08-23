@@ -1,8 +1,16 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+
+// Konfigurierbarer Tile-Endpunkt. Ein hart verdrahtetes 127.0.0.1 zeigt im
+// Browser des Besuchers auf DESSEN Rechner und ist unter HTTPS zusätzlich
+// als Mixed Content blockiert.
+const TILE_BASE_URL = process.env.NEXT_PUBLIC_TILE_BASE_URL ?? 'http://127.0.0.1:3001';
+
+const PANEL_WIDTH = 288; // w-72
+const PANEL_MIN_VISIBLE = 48;
 
 export default function Map() {
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -16,41 +24,67 @@ export default function Map() {
     strahler: string;
     lengthKm: string;
   } | null>(null);
-  
+
+  // Tile-Fehler werden sichtbar gemacht statt verschluckt.
+  const [tileError, setTileError] = useState<string | null>(null);
+
   const [panelPos, setPanelPos] = useState({ x: 20, y: 20 });
   const [isDragging, setIsDragging] = useState(false);
   const dragRef = useRef<{ startX: number; startY: number; startPosX: number; startPosY: number } | null>(null);
+  const rafRef = useRef<number | null>(null);
 
   // Drag logic
-  const handleMouseDown = (e: React.MouseEvent) => {
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
     setIsDragging(true);
     dragRef.current = {
       startX: e.clientX,
       startY: e.clientY,
       startPosX: panelPos.x,
-      startPosY: panelPos.y
+      startPosY: panelPos.y,
     };
-  };
+  }, [panelPos.x, panelPos.y]);
 
+  // Drag: auf die Bildwiederholrate gedrosselt und in den Viewport geclampt.
   useEffect(() => {
+    if (!isDragging) return;
+
+    const container = mapContainer.current;
+
     const handleMouseMove = (e: MouseEvent) => {
-      if (!isDragging || !dragRef.current) return;
-      const dx = e.clientX - dragRef.current.startX;
-      const dy = e.clientY - dragRef.current.startY;
-      setPanelPos({
-        x: dragRef.current.startPosX + dx,
-        y: dragRef.current.startPosY + dy
+      if (!dragRef.current) return;
+      if (rafRef.current !== null) return;
+
+      rafRef.current = requestAnimationFrame(() => {
+        rafRef.current = null;
+        if (!dragRef.current) return;
+
+        const dx = e.clientX - dragRef.current.startX;
+        const dy = e.clientY - dragRef.current.startY;
+        const maxX = (container?.clientWidth ?? PANEL_WIDTH) - PANEL_MIN_VISIBLE;
+        const maxY = (container?.clientHeight ?? 0) - PANEL_MIN_VISIBLE;
+
+        setPanelPos({
+          x: Math.min(Math.max(dragRef.current.startPosX + dx, 0), Math.max(maxX, 0)),
+          y: Math.min(Math.max(dragRef.current.startPosY + dy, 0), Math.max(maxY, 0)),
+        });
       });
     };
-    const handleMouseUp = () => setIsDragging(false);
 
-    if (isDragging) {
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
-    }
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      dragRef.current = null;
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
     };
   }, [isDragging]);
 
@@ -62,11 +96,11 @@ export default function Map() {
       sources: {
         basemap: {
           type: 'vector',
-          url: 'http://127.0.0.1:3001/basemap',
+          url: `${TILE_BASE_URL}/basemap`,
         },
         rivers: {
           type: 'vector',
-          url: 'http://127.0.0.1:3001/rivers_global',
+          url: `${TILE_BASE_URL}/rivers_global`,
         },
       },
       layers: [
@@ -198,24 +232,39 @@ export default function Map() {
     map.current = newMap;
     newMap.addControl(new maplibregl.NavigationControl(), 'top-right');
 
+    // Tile-Fehler fangen und im State anzeigen
+    newMap.on('error', (e) => {
+      const message = (e as unknown as { error?: Error }).error?.message ?? 'Unbekannter Kartenfehler';
+      console.error('[Map] MapLibre error:', message);
+      setTileError(
+        `Kartendaten konnten nicht geladen werden (${TILE_BASE_URL}). ` +
+        'Läuft der Tile-Server und ist NEXT_PUBLIC_TILE_BASE_URL korrekt gesetzt?'
+      );
+    });
+
+    const safeSetHighlight = (systemId: string) => {
+      if (!newMap.getLayer('rivers-highlight')) return;
+      newMap.setFilter('rivers-highlight', ['==', ['get', 'river_system_id'], systemId]);
+    };
+
     newMap.on('click', 'rivers-base', (e) => {
       if (e.features && e.features.length > 0) {
         const feature = e.features[0];
-        const props = feature.properties;
+        const props = (feature.properties ?? {}) as Record<string, unknown>;
         const riverSystemId = props.river_system_id;
         
-        const riverName = props.clean_name || 'Unbenannter Fluss';
-        const segmentId = props.global_id || '?';
-        const strahler = props.strahler_order || '?';
-        const lengthKm = props.length ? (props.length / 1000).toFixed(2) : '?';
+        const riverName = String(props.clean_name ?? 'Unbenannter Fluss');
+        const segmentId = String(props.global_id ?? '?');
+        const strahler = String(props.strahler_order ?? '?');
+        const lengthKm = typeof props.length === 'number' ? (props.length / 1000).toFixed(2) : '?';
 
         if (riverSystemId) {
-          newMap.setFilter('rivers-highlight', ['==', ['get', 'river_system_id'], riverSystemId]);
+          safeSetHighlight(String(riverSystemId));
           
           // Set React state instead of opening maplibregl.Popup
           setSelectedRiver({
             name: riverName,
-            systemId: riverSystemId,
+            systemId: String(riverSystemId),
             segmentId: segmentId,
             strahler: strahler,
             lengthKm: lengthKm
@@ -226,9 +275,10 @@ export default function Map() {
 
     // Deselect if clicking outside the rivers layer
     newMap.on('click', (e) => {
+      if (!newMap.getLayer('rivers-base')) return;
       const features = newMap.queryRenderedFeatures(e.point, { layers: ['rivers-base'] });
       if (!features.length) {
-        newMap.setFilter('rivers-highlight', ['==', ['get', 'river_system_id'], '']);
+        safeSetHighlight('');
         setSelectedRiver(null);
       }
     });
@@ -250,6 +300,16 @@ export default function Map() {
   return (
     <div className="relative w-full h-[600px] rounded-2xl overflow-hidden shadow-2xl border border-border/40 bg-card/50">
       <div ref={mapContainer} className="w-full h-full" />
+
+      {tileError && (
+        <div
+          role="alert"
+          data-testid="map-tile-error"
+          className="absolute inset-x-4 top-4 z-40 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive backdrop-blur-sm"
+        >
+          {tileError}
+        </div>
+      )}
       
       {/* Draggable React Popup */}
       {selectedRiver && (
@@ -268,7 +328,7 @@ export default function Map() {
             <button 
               onClick={() => {
                 setSelectedRiver(null);
-                if (map.current) {
+                if (map.current && map.current.getLayer('rivers-highlight')) {
                   map.current.setFilter('rivers-highlight', ['==', ['get', 'river_system_id'], '']);
                 }
               }}
@@ -284,14 +344,6 @@ export default function Map() {
             <div><strong className="text-slate-900">Segment ID:</strong> {selectedRiver.segmentId}</div>
             <div><strong className="text-slate-900">Länge:</strong> {selectedRiver.lengthKm} km</div>
             <div><strong className="text-slate-900">Strahler Ordnung:</strong> {selectedRiver.strahler}</div>
-            
-            <a 
-              href={`/river/${selectedRiver.systemId}`}
-              target="_blank" 
-              className="block mt-4 text-center bg-[#007cbf] hover:bg-[#006aa3] text-white py-2 px-4 rounded font-bold transition-colors"
-            >
-              Gesamtes Fluss-System öffnen
-            </a>
           </div>
         </div>
       )}

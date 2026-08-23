@@ -27,9 +27,6 @@ export default async function RootLayout({
   const { lang } = await params;
   return (
     <html lang={lang} suppressHydrationWarning data-scroll-behavior="smooth">
-      <head>
-        <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
-      </head>
       <body className={`${outfit.variable} font-sans min-h-screen bg-background text-foreground antialiased`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem themes={['light', 'dark']}>
 

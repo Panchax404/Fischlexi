@@ -2,11 +2,11 @@
 
 import * as React from "react";
 import { useTheme } from "next-themes";
-import { MoonIcon, SunIcon, BeakerIcon } from "@heroicons/react/24/outline";
+import { MoonIcon, SunIcon } from "@heroicons/react/24/outline";
 import { motion, AnimatePresence } from "framer-motion";
 
 export function ThemeSwitcher() {
-    const { theme, setTheme } = useTheme();
+    const { theme, resolvedTheme, setTheme } = useTheme();
     const [mounted, setMounted] = React.useState(false);
 
     React.useEffect(() => {
@@ -17,9 +17,14 @@ export function ThemeSwitcher() {
         return <div className="w-10 h-10" />; // Placeholder to avoid hydration mismatch
     }
 
+    const current = theme === 'system' ? resolvedTheme : theme;
+
     const cycleTheme = () => {
-        if (theme === "light") setTheme("dark");
-        else setTheme("light");
+        if (current === 'dark') {
+            setTheme('light');
+        } else {
+            setTheme('dark');
+        }
     };
 
     return (
@@ -30,13 +35,13 @@ export function ThemeSwitcher() {
         >
             <AnimatePresence mode="wait" initial={false}>
                 <motion.div
-                    key={theme}
+                    key={current}
                     initial={{ y: -20, opacity: 0, rotate: -90 }}
                     animate={{ y: 0, opacity: 1, rotate: 0 }}
                     exit={{ y: 20, opacity: 0, rotate: 90 }}
                     transition={{ duration: 0.2 }}
                 >
-                    {theme === "light" ? (
+                    {current === "light" ? (
                         <SunIcon className="w-5 h-5 text-yellow-500" />
                     ) : (
                         <MoonIcon className="w-5 h-5 text-blue-400" />

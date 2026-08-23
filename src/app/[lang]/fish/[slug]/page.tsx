@@ -1,10 +1,8 @@
 import React, { cache } from 'react';
-import { Fish } from '../../../../../lib/types';
 import Link from 'next/link';
-import type { Metadata, ResolvingMetadata } from 'next';
+import type { Metadata } from 'next';
 import Image from 'next/image';
-import { ArrowLeftIcon, MapPinIcon, BeakerIcon, ScaleIcon, FireIcon, CubeIcon, ClockIcon } from '@heroicons/react/24/outline'; // Updated icons
-import { clsx } from 'clsx'; // Assuming clsx is installed or available via lib/utils
+import { ArrowLeftIcon, MapPinIcon, BeakerIcon, ScaleIcon, FireIcon, CubeIcon, ClockIcon } from '@heroicons/react/24/outline';
 import { getFishDetails } from '../../../../../lib/db/fish';
 
 const getFishData = cache(async (slugParam: string, lang: string): Promise<any | null> => {
@@ -17,8 +15,7 @@ type FishDetailPageProps = {
 };
 
 export async function generateMetadata(
-  { params: paramsProp }: FishDetailPageProps,
-  parent: ResolvingMetadata
+  { params: paramsProp }: FishDetailPageProps
 ): Promise<Metadata> {
   const params = await paramsProp;
   const fish = await getFishData(params.slug, params.lang);
@@ -77,7 +74,7 @@ export default async function FishDetailPage({ params: paramsProp, searchParams:
         <p className="text-muted-foreground mb-8">
           Der gesuchte Fisch "{decodeURIComponent(params.slug)}" konnte nicht gefunden werden.
         </p>
-        <Link href="/" className="px-6 py-3 bg-primary text-primary-foreground rounded-full hover:bg-primary/90 transition-colors font-medium">
+        <Link href={`/${params.lang}`} className="px-6 py-3 bg-primary text-primary-foreground rounded-full hover:bg-primary/90 transition-colors font-medium">
           Zurück zur Suche
         </Link>
       </div>
@@ -93,7 +90,8 @@ export default async function FishDetailPage({ params: paramsProp, searchParams:
       else queryBuilder.append(key, value as string);
     }
   }
-  const backToSearchHref = `/?${queryBuilder.toString()}`;
+  const backQuery = queryBuilder.toString();
+  const backToSearchHref = `/${params.lang}${backQuery ? `?${backQuery}` : ''}`;
 
   return (
     <div className="max-w-7xl mx-auto animate-in fade-in duration-500">

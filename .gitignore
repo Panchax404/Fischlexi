@@ -23,6 +23,7 @@
 # misc
 .DS_Store
 *.pem
+tile.pbf
 
 # debug
 npm-debug.log*
@@ -32,6 +33,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -46,16 +48,11 @@ next-env.d.ts
 .agents/.system_generated/
 skills-lock.json
 
-# playwright
+# playwright reports & results (e2e/ and playwright.config.ts are tracked source code!)
 /playwright-report/
 /test-results/
 /blob-report/
 /playwright/.cache/
-/e2e/
-playwright.config.ts
-
-# Documentation
-docs/
 
 # IDE files
 .vscode/
@@ -63,10 +60,8 @@ docs/
 *.swp
 *.swo
 
-# Extra Security
+# Extra Security & DB runtime temps
 *.sqlite
 *.db
 *.log
 supabase/.temp/
-supabase/*.sql
-supabase/migrations/*.sql

@@ -17,14 +17,6 @@ interface OriginFilterProps {
 
 type CheckState = 'checked' | 'unchecked' | 'indeterminate';
 
-const TYPE_CONFIG: Record<string, { icon: string; label: string }> = {
-    continent: { icon: '🌍', label: 'Kontinent' },
-    country: { icon: '🏳️', label: 'Land' },
-    region: { icon: '📍', label: 'Region' },
-    waterbody: { icon: '💧', label: 'Gewässer' },
-    other: { icon: '📌', label: 'Sonstiges' },
-};
-
 
 
 export default function OriginFilter({
@@ -172,7 +164,6 @@ export default function OriginFilter({
         const hasChildren = children.length > 0;
         const isExpanded = expandedNodeIds.has(node.id);
         const state = getCheckState(node);
-        const isRoot = depth === 0;
 
         return (
             <div key={node.id} className="flex flex-col">
@@ -310,7 +301,7 @@ export default function OriginFilter({
                                     </div>
 
                                     {/* Modal Body */}
-                                    <div className="flex-1 overflow-y-auto overflow-x-hidden pt-2 pb-4 scrollbar-thin scrollbar-thumb-muted">
+                                    <div className="flex-1 overflow-y-auto overflow-x-hidden pt-2 pb-4 scrollbar-slim">
                                         {roots.length === 0 ? (
                                             <div className="p-8 text-center text-muted-foreground">Keine Regionen verfügbar</div>
                                         ) : (

@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState, Fragment, useEffect } from 'react';
+import React, { useState, Fragment, useEffect, useCallback } from 'react';
 import OriginFilter from './OriginFilter';
 import { FilterState, FilterOptions } from '../lib/types';
+import { hasAnyActiveFilter } from '../lib/searchParamsUtils';
 import { Transition } from '@headlessui/react';
 import { ChevronDownIcon, XCircleIcon } from '@heroicons/react/24/solid';
 import RangeFilterSection from './RangeFilterSection';
@@ -17,9 +18,9 @@ type FilterBarProps = {
   disabled?: boolean;
 };
 
-
-
 type CheckboxFilterKeys = keyof Omit<FilterState, 'temperatur' | 'phWert' | 'hardness' | 'liters' | 'length'>;
+
+
 
 interface AccordionFilterSectionProps {
   title: string;
@@ -106,7 +107,7 @@ const AccordionFilterSection: React.FC<AccordionFilterSectionProps> = ({
               Zurücksetzen
             </button>
           )}
-          <div className="space-y-2 max-h-60 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
+          <div className="space-y-2 max-h-60 overflow-y-auto pr-2 scrollbar-slim">
             {visibleOptions.map(opt => (
               <label key={opt} className="flex items-center py-1 cursor-pointer group">
                 <div className="relative flex items-center">
@@ -166,13 +167,16 @@ const SingleSliderFilterSection: React.FC<SingleSliderFilterSectionProps> = ({
 
   const isActive = currentValue !== undefined;
 
-  const formatValue = (val: number) => Number.isInteger(step) ? String(val) : val.toFixed(1);
+  const formatValue = useCallback(
+    (val: number) => (Number.isInteger(step) ? String(val) : val.toFixed(1)),
+    [step]
+  );
 
   useEffect(() => {
     const val = currentValue ?? minValue;
     setLocalValue(val);
     setInputValue(formatValue(val));
-  }, [currentValue, minValue, step]);
+  }, [currentValue, minValue, step, formatValue]);
 
   const handleSliderChange = (val: number | number[]) => {
     if (typeof val === 'number') {
@@ -354,7 +358,9 @@ const FilterBar: React.FC<FilterBarProps> = ({ filter, setFilter, options, disab
     });
   };
 
-  const hasActiveFilters = Object.keys(filter).length > 0;
+  // Wertbasiert statt schlüsselbasiert: Object.keys().length war strukturell
+  // immer >= 4, weil parseSearchParams die Multi-Select-Keys unbedingt setzte.
+  const hasActiveFilters = hasAnyActiveFilter(filter);
 
   return (
     <div className="bg-background/50 backdrop-blur-md border border-border/50 p-6 rounded-3xl shadow-sm mb-8">

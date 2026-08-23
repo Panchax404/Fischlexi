@@ -1,7 +1,9 @@
-import { getSupabaseAdmin } from '../supabaseClient';
+import { getSupabasePublic } from '../supabaseClient';
 import type { FilterState } from '../types';
+import { sanitizeSearchTerm, intersectAllowlist, toPostgrestInList } from './searchTerm';
+import { getFilterOptions } from './options';
 
-const supabaseAdmin = getSupabaseAdmin();
+const supabasePublic = getSupabasePublic();
 
 type SearchParams = {
     q?: string;
@@ -13,7 +15,7 @@ type SearchParams = {
 
 export async function getFishDetails(slug: string, lang: string = 'de') {
     try {
-        const { data: fishDataRaw, error: fishError } = await supabaseAdmin
+        const { data: fishDataRaw, error: fishError } = await supabasePublic
             .from('fish_translations')
             .select(`
                 name, slug, common_other_names, description_general,
@@ -37,6 +39,7 @@ export async function getFishDetails(slug: string, lang: string = 'de') {
             `)
             .eq('slug', slug.toLowerCase()) // FAST B-Tree Index! Ensure lowercase match.
             .eq('language_code', lang)
+            .eq('fish.is_published', true)
             .maybeSingle();
 
         if (fishError) {
@@ -115,7 +118,7 @@ export async function searchFish({ q, lang = 'de', page = 1, limit = 12, filters
     try {
         const offset = (page - 1) * limit;
 
-        let query = supabaseAdmin
+        let query = supabasePublic
             .from('fish_translations')
             .select(`
         name, slug, common_other_names, description_general,
@@ -138,37 +141,71 @@ export async function searchFish({ q, lang = 'de', page = 1, limit = 12, filters
             .eq('language_code', lang)
             .eq('fish.is_published', true);
 
-        // Text Search
+        // Text Search — or() auf der Basistabelle fish_translations.
+        // Da PostgREST mehrere or()-Parameter auf verschiedenen Tabellen als AND
+        // verknüpft, wird hier sauber auf name & description_general gesucht.
         if (q && q.trim()) {
-            const searchTerm = q.trim().replace(/,/g, ' ');
-            query = query.or(
-                `name.ilike.%${searchTerm}%,description_general.ilike.%${searchTerm}%,fish.latin_name.ilike.%${searchTerm}%`
+            const searchTerm = sanitizeSearchTerm(q);
+
+            if (searchTerm.length > 0) {
+                query = query.or(
+                    `name.ilike.%${searchTerm}%,description_general.ilike.%${searchTerm}%`
+                );
+            }
+        }
+
+        // Multi-Select-Filter gegen Allowlist prüfen.
+        // getFilterOptions() ist unstable_cache-gecached (revalidate 3600),
+        // verursacht also keinen zusätzlichen Roundtrip pro Request.
+        const needsAllowlist =
+            (filters.haltung?.length ?? 0) > 0 ||
+            (filters.ernahrung?.length ?? 0) > 0 ||
+            (filters.schwimmhoehe?.length ?? 0) > 0;
+
+        const allowlists = needsAllowlist
+            ? await getFilterOptions()
+            : { haltung: [], ernahrung: [], schwimmhoehe: [] };
+
+        const haltung = intersectAllowlist(filters.haltung, allowlists.haltung);
+        if (haltung.length > 0) {
+            query = query.filter(
+                'fish.fish_keeping_types.keeping_type.name', 'in', toPostgrestInList(haltung)
             );
         }
 
-        // Filters
-        if (filters.haltung && filters.haltung.length > 0) {
-            const quoted = filters.haltung.map(val => `"${val.replace(/"/g, '""')}"`);
-            query = query.filter('fish.fish_keeping_types.keeping_type.name', 'in', `(${quoted.join(',')})`);
+        const ernahrung = intersectAllowlist(filters.ernahrung, allowlists.ernahrung);
+        if (ernahrung.length > 0) {
+            query = query.filter(
+                'fish.fish_feeding_categories_map.feeding_category.name', 'in', toPostgrestInList(ernahrung)
+            );
         }
-        if (filters.ernahrung && filters.ernahrung.length > 0) {
-            const quoted = filters.ernahrung.map(val => `"${val.replace(/"/g, '""')}"`);
-            query = query.filter('fish.fish_feeding_categories_map.feeding_category.name', 'in', `(${quoted.join(',')})`);
-        }
+
         if (filters.herkunft && filters.herkunft.length > 0) {
-            const { data: descendantData, error: rpcError } = await supabaseAdmin
+            const { data: descendantData, error: rpcError } = await supabasePublic
                 .rpc('get_descendant_origin_ids_by_slugs', { slugs: filters.herkunft });
 
             if (rpcError) console.error('[searchFish] RPC error for origin descendants:', rpcError);
 
-            if (descendantData && descendantData.length > 0) {
-                const idsParam = `(${descendantData.map((row: any) => row.id).join(',')})`;
-                query = query.filter('fish.fish_origins.origin_id', 'in', idsParam);
+            // Nur echte Ganzzahlen weiterreichen: ein NaN oder undefined würde
+            // sonst als Literal "NaN" in die in()-Liste interpoliert werden.
+            const originIds = (descendantData ?? [])
+                .map((row: { id: unknown }) => Number(row.id))
+                .filter((id: number) => Number.isSafeInteger(id) && id > 0);
+
+            if (originIds.length > 0) {
+                query = query.filter('fish.fish_origins.origin_id', 'in', `(${originIds.join(',')})`);
+            } else {
+                // Angeforderte Region existiert nicht -> definitiv leeres Ergebnis,
+                // statt den Filter stillschweigend zu ignorieren (Fail-Closed).
+                query = query.eq('fish.id', -1);
             }
         }
-        if (filters.schwimmhoehe && filters.schwimmhoehe.length > 0) {
-            const quoted = filters.schwimmhoehe.map(val => `"${val.replace(/"/g, '""')}"`);
-            query = query.filter('fish.fish_swimming_zones.swimming_zone.zone_name', 'in', `(${quoted.join(',')})`);
+
+        const schwimmhoehe = intersectAllowlist(filters.schwimmhoehe, allowlists.schwimmhoehe);
+        if (schwimmhoehe.length > 0) {
+            query = query.filter(
+                'fish.fish_swimming_zones.swimming_zone.zone_name', 'in', toPostgrestInList(schwimmhoehe)
+            );
         }
 
         // Temp Range

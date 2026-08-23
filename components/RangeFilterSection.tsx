@@ -1,9 +1,9 @@
 // components/RangeFilterSection.tsx
 'use client';
 
-import React, { useState, Fragment, useEffect } from 'react';
+import React, { useState, Fragment, useEffect, useCallback } from 'react';
 import { Transition } from '@headlessui/react';
-import { ChevronDownIcon, XCircleIcon } from '@heroicons/react/24/solid';
+import { ChevronDownIcon } from '@heroicons/react/24/solid';
 import Slider from 'rc-slider';
 import 'rc-slider/assets/index.css';
 import '../src/app/styles/rc-slider-overrides.css';
@@ -44,21 +44,24 @@ const RangeFilterSection: React.FC<RangeFilterSectionProps> = ({
 
     const isActive = currentValue !== undefined && (currentValue.min !== minValue || currentValue.max !== maxValue);
 
-    const formatValue = (val: number) => Number.isInteger(step) ? String(val) : val.toFixed(1);
+    const formatValue = useCallback(
+      (val: number) => (Number.isInteger(step) ? String(val) : val.toFixed(1)),
+      [step]
+    );
 
     // Sync from Props
     useEffect(() => {
-        const min = currentValue?.min ?? minValue;
-        const max = currentValue?.max ?? maxValue;
+      const min = currentValue?.min ?? minValue;
+      const max = currentValue?.max ?? maxValue;
 
-        setLocalRange([min, max]);
-        setMinInput(formatValue(min));
-        setMaxInput(formatValue(max));
+      setLocalRange([min, max]);
+      setMinInput(formatValue(min));
+      setMaxInput(formatValue(max));
 
-        const single = min;
-        setSingleValue(single);
-        setSingleInput(formatValue(single));
-    }, [currentValue, minValue, maxValue, step]);
+      const single = min;
+      setSingleValue(single);
+      setSingleInput(formatValue(single));
+    }, [currentValue, minValue, maxValue, step, formatValue]);
 
     // Slider Handlers
     const handleRangeSliderChange = (value: number | number[]) => {

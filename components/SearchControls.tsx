@@ -3,17 +3,11 @@
 import React, { useState, useEffect, useTransition } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import FilterBar from "./FilterBar";
-import type { FilterState } from '../lib/types';
-import { MagnifyingGlassIcon } from '@heroicons/react/24/outline'; // Need check if available, assuming yes
-
-// Constants
-const GLOBAL_MIN_TEMP = 0;
-const GLOBAL_MAX_TEMP = 40;
-const GLOBAL_MIN_PH = 0.0;
-const GLOBAL_MAX_PH = 14.0;
+import type { FilterState, FilterOptions } from '../lib/types';
+import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 
 type SearchControlsProps = {
-    initialOptions: any;
+    initialOptions: FilterOptions;
     initialFilters: FilterState;
     initialQuery: string;
 };
@@ -68,14 +62,26 @@ export default function SearchControls({ initialOptions, initialFilters, initial
     }, [searchQueryInput]);
 
     const isMounted = React.useRef(false);
+    const lastPushedUrl = React.useRef<string | null>(null);
 
     useEffect(() => {
-        if (!isMounted.current) {
-            isMounted.current = true;
-            return;
-        }
         const queryString = buildUrlQueryString(debouncedSearchQueryInput, filters);
         const newPath = `${pathname}${queryString ? `?${queryString}` : ''}`;
+
+        // Beim ersten Render die vom Server gelieferte URL als Baseline setzen,
+        // ohne zu navigieren.
+        if (!isMounted.current) {
+            isMounted.current = true;
+            lastPushedUrl.current = newPath;
+            return;
+        }
+
+        // Deduplizieren: ein reiner Referenzwechsel des filters-Objekts (z.B.
+        // setFilter({}) bei bereits leerem Filter) darf keinen RSC-Roundtrip
+        // auslösen, wenn die resultierende URL unverändert ist.
+        if (lastPushedUrl.current === newPath) return;
+        lastPushedUrl.current = newPath;
+
         startTransition(() => {
             router.push(newPath, { scroll: false });
         });

@@ -1,6 +1,8 @@
 # Fischlexi
 
-Ein Next.js Projekt für das Fischlexi.
+Ein Next.js 16 Projekt für das Fischlexikon (Aquaristik-Nachschlagewerk) mit Next.js App Router, React 19, Tailwind CSS v4 und Supabase.
+
+---
 
 ## 🚀 Quickstart: Setup auf einem neuen PC
 
@@ -8,51 +10,72 @@ Wenn du das Projekt auf einen neuen PC herunterlädst, folge diesen einfachen Sc
 
 ### 1. Repository klonen und Abhängigkeiten installieren
 
-Öffne dein Terminal und lade das Projekt herunter:
-
 ```bash
 git clone <deine-github-repo-url>
 cd Fischlexi
 npm install
 ```
 
-### 2. Umgebungsvariablen (Connection Strings) einrichten
+### 2. Umgebungsvariablen einrichten
 
-Aus Sicherheitsgründen werden die echten Zugangsdaten (Connection Strings) nicht auf GitHub hochgeladen. Du musst sie manuell anlegen:
-
-1. Kopiere die mitgelieferte Vorlagendatei `.env.example` und nenne sie `.env.local`:
+1. Kopiere die Vorlagendatei `.env.example` zu `.env.local`:
    ```bash
    cp .env.example .env.local
    ```
-   *(Unter Windows im Explorer: `.env.example` kopieren und als `.env.local` einfügen)*
-
-2. Öffne die neue `.env.local` Datei und trage deine echten Supabase-Zugangsdaten ein. Diese findest du in deinem Supabase Dashboard. 
-   Die Datei sollte dann in etwa so aussehen:
+2. Trage deine echten Supabase- und App-Zugangsdaten in `.env.local` ein:
    ```env
    NEXT_PUBLIC_SUPABASE_URL=https://deine-url.supabase.co
    NEXT_PUBLIC_SUPABASE_ANON_KEY=dein_langer_anon_key
    SUPABASE_SERVICE_ROLE_KEY=dein_service_role_key
    SUPABASE_ACCESS_TOKEN=dein_access_token
+
+   # Optionale Umgebungsvariablen
+   DATABASE_URL=postgresql://postgres:...
+   NEXT_PUBLIC_APP_URL=http://localhost:3000
+   NEXT_PUBLIC_TILE_BASE_URL=http://127.0.0.1:3001
    ```
 
-### 3. Entwicklungsserver starten
+### 3. Tile-Server (Voraussetzung für die interaktive Karte `/karte`)
 
-Sobald die Abhängigkeiten installiert und die `.env.local` Datei angelegt ist, kannst du das Projekt starten:
+Die interaktive Vektorkarte (`/de/karte`) lädt weltweite Gewässer- und Kartendaten über Vector-Tiles.
+Stelle sicher, dass der lokale Tile-Server gestartet ist:
+```bash
+# Erreichbar unter dem Port aus NEXT_PUBLIC_TILE_BASE_URL (Standard: Port 3001)
+http://127.0.0.1:3001
+```
+
+### 4. Entwicklungsserver starten
 
 ```bash
 npm run dev
 ```
 
-Öffne nun [http://localhost:3000](http://localhost:3000) in deinem Browser. Das Projekt läuft!
+Öffne nun [http://localhost:3000](http://localhost:3000) im Browser.
 
 ---
 
-## 🧪 Testing (Playwright)
+## 🛡️ Qualitätssicherung & Verifikation
+
+Das Projekt erzwingt eine strikte Verifikations-Pipeline (Linting, TypeScript Type-Checking, Production Build):
+
+```bash
+# Führt Linting, Typencheck und Production-Build in einem Befehl aus
+npm run verify
+
+# Einzelne Prüfungen
+npm run lint       # ESLint 9 Flat Config
+npm run typecheck  # tsc --noEmit
+npm run build      # Next.js Production Build
+```
+
+---
+
+## 🧪 Testing (Playwright E2E)
 
 Dieses Projekt nutzt [Playwright](https://playwright.dev/) für End-to-End Tests.
 
 ```bash
-# E2E Tests im Hintergrund ausführen (Server muss mit npm run dev laufen!)
+# E2E Tests ausführen (Webserver startet automatisch via Playwright-Config)
 npx playwright test
 
 # Playwright UI Mode zum visuellen Debuggen öffnen

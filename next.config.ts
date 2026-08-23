@@ -1,7 +1,7 @@
-/** @type {import('next').NextConfig} */
-const nextConfig = {
+import type { NextConfig } from 'next';
+
+const nextConfig: NextConfig = {
   reactStrictMode: true,
-  allowedDevOrigins: ['192.168.37.129'],
   images: {
     remotePatterns: [
       {
@@ -10,19 +10,22 @@ const nextConfig = {
         port: '',
         pathname: '/random/**',
       },
-      { //Wikimedia Commons
+      {
+        // Wikimedia Commons
         protocol: 'https',
         hostname: 'upload.wikimedia.org',
         port: '',
         pathname: '/wikipedia/commons/**',
       },
-      { // Pixabay
+      {
+        // Pixabay
         protocol: 'https',
         hostname: 'cdn.pixabay.com',
         port: '',
         pathname: '/photo/**',
       },
-      { // Zoobox
+      {
+        // Zoobox
         protocol: 'https',
         hostname: 'zoobox.de',
         port: '',
@@ -32,4 +35,4 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+export default nextConfig;

@@ -1,13 +1,14 @@
 'use client';
 
 import React from 'react';
-import { Fish, FilterState } from '../lib/types';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { ArrowRightIcon, MapPinIcon, BeakerIcon } from '@heroicons/react/24/outline'; // BeakerIcon for parameters
+import { ArrowRightIcon, MapPinIcon } from '@heroicons/react/24/outline';
+import type { Fish, FilterState } from '../lib/types';
 
 type FishCardProps = {
   fish: Fish;
+  lang: string;
   activeFilters?: FilterState;
   searchQueryFromCaller?: string;
 };
@@ -19,9 +20,9 @@ const safeJoin = (arr: string[] | undefined, limit = 2) => {
   return arr.slice(0, limit).join(', ') + '...';
 };
 
-const FishCard: React.FC<FishCardProps> = ({ fish, activeFilters, searchQueryFromCaller }) => {
-  const slug = fish.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-  const detailPageHref = `/fish/${slug}${searchQueryFromCaller ? `?${searchQueryFromCaller}` : ''}`;
+const FishCard: React.FC<FishCardProps> = ({ fish, lang, activeFilters, searchQueryFromCaller }) => {
+  const query = searchQueryFromCaller ? `?${searchQueryFromCaller}` : '';
+  const detailPageHref = `/${lang}/fish/${fish.slug}${query}`;
 
   // Helper to determine if a filter is active
   const isFilterActive = (key: keyof FilterState) => {
