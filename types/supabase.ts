@@ -289,13 +289,6 @@ export type Database = {
             foreignKeyName: "fish_origins_origin_id_fkey"
             columns: ["origin_id"]
             isOneToOne: false
-            referencedRelation: "origin_fish_counts"
-            referencedColumns: ["origin_id"]
-          },
-          {
-            foreignKeyName: "fish_origins_origin_id_fkey"
-            columns: ["origin_id"]
-            isOneToOne: false
             referencedRelation: "origins"
             referencedColumns: ["id"]
           },
@@ -417,6 +410,13 @@ export type Database = {
             referencedRelation: "fish"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fish_translations_language_code_fkey"
+            columns: ["language_code"]
+            isOneToOne: false
+            referencedRelation: "languages"
+            referencedColumns: ["code"]
+          },
         ]
       }
       food_types: {
@@ -523,6 +523,33 @@ export type Database = {
         }
         Relationships: []
       }
+      languages: {
+        Row: {
+          code: string
+          created_at: string
+          is_active: boolean
+          name_en: string
+          name_native: string
+          sort_order: number
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          is_active?: boolean
+          name_en: string
+          name_native: string
+          sort_order?: number
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          is_active?: boolean
+          name_en?: string
+          name_native?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
       origin_cross_references: {
         Row: {
           also_appears_under_id: number
@@ -544,22 +571,8 @@ export type Database = {
             foreignKeyName: "origin_cross_references_also_appears_under_id_fkey"
             columns: ["also_appears_under_id"]
             isOneToOne: false
-            referencedRelation: "origin_fish_counts"
-            referencedColumns: ["origin_id"]
-          },
-          {
-            foreignKeyName: "origin_cross_references_also_appears_under_id_fkey"
-            columns: ["also_appears_under_id"]
-            isOneToOne: false
             referencedRelation: "origins"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "origin_cross_references_origin_id_fkey"
-            columns: ["origin_id"]
-            isOneToOne: false
-            referencedRelation: "origin_fish_counts"
-            referencedColumns: ["origin_id"]
           },
           {
             foreignKeyName: "origin_cross_references_origin_id_fkey"
@@ -602,13 +615,6 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "origins_parent_id_fkey"
-            columns: ["parent_id"]
-            isOneToOne: false
-            referencedRelation: "origin_fish_counts"
-            referencedColumns: ["origin_id"]
-          },
           {
             foreignKeyName: "origins_parent_id_fkey"
             columns: ["parent_id"]
@@ -699,22 +705,8 @@ export type Database = {
             foreignKeyName: "waterbody_countries_country_id_fkey"
             columns: ["country_id"]
             isOneToOne: false
-            referencedRelation: "origin_fish_counts"
-            referencedColumns: ["origin_id"]
-          },
-          {
-            foreignKeyName: "waterbody_countries_country_id_fkey"
-            columns: ["country_id"]
-            isOneToOne: false
             referencedRelation: "origins"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "waterbody_countries_waterbody_id_fkey"
-            columns: ["waterbody_id"]
-            isOneToOne: false
-            referencedRelation: "origin_fish_counts"
-            referencedColumns: ["origin_id"]
           },
           {
             foreignKeyName: "waterbody_countries_waterbody_id_fkey"
@@ -727,7 +719,7 @@ export type Database = {
       }
     }
     Views: {
-      origin_fish_counts: {
+      origin_fish_counts_public: {
         Row: {
           origin_id: number | null
           published_fish_count: number | null
@@ -737,6 +729,13 @@ export type Database = {
       }
     }
     Functions: {
+      admin_refresh_origin_counts: { Args: never; Returns: string }
+      fischlexi_array_to_text: { Args: { arr: string[] }; Returns: string }
+      fischlexi_search_tsquery: {
+        Args: { search_query: string }
+        Returns: unknown
+      }
+      fischlexi_tsv: { Args: { txt: string }; Returns: unknown }
       generate_origin_path_label: {
         Args: { name_input: string }
         Returns: string
@@ -755,6 +754,22 @@ export type Database = {
         }[]
       }
       is_admin: { Args: never; Returns: boolean }
+      refresh_origin_fish_counts: { Args: never; Returns: undefined }
+      search_fish_by_language: {
+        Args: {
+          lang_code?: string
+          page_limit?: number
+          page_offset?: number
+          search_query: string
+        }
+        Returns: {
+          fish_id: number
+          latin_name: string
+          name: string
+          rank: number
+          slug: string
+        }[]
+      }
       transliterate_german: { Args: { input: string }; Returns: string }
     }
     Enums: {
@@ -888,4 +903,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-

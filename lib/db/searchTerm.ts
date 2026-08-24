@@ -1,12 +1,15 @@
 /**
- * Neutralisiert einen benutzerkontrollierten Suchbegriff für die Verwendung
- * innerhalb eines PostgREST-or()-Logikbaums.
+ * Neutralisiert einen benutzerkontrollierten Suchbegriff.
  *
- * Zwei getrennte Bedrohungen werden adressiert:
- *  1) PostgREST-Grammatik: , . ( ) : " \ trennen Tokens bzw. Klauseln.
- *     Unescaped erlauben sie das Einschmuggeln zusätzlicher Prädikate.
- *  2) SQL-LIKE-Semantik: % und _ sind Wildcards. Unescaped erlauben sie
- *     Volltabellen-Matches und teure Planner-Pfade.
+ * Seit P1 (DB-DEFECT-005) läuft die Suche über die RPC `search_fish_by_language`
+ * (GIN-Index, german_unaccent). Der Suchterm wird als JSON-Parameter übergeben —
+ * nicht mehr in einen PostgREST-Filterbaum interpoliert — und die RPC sanitisiert
+ * serverseitig autoritativ (Regexp-Whitelist, Token >= 2 Zeichen, to_tsquery mit
+ * ':*'-Präfixen). Diese clientseitige Vorreinigung bleibt als Defense-in-Depth:
+ *  1) Längen-Deckel (64) und Whitespace-Normalisierung schützen die RPC-Kosten.
+ *  2) PostgREST-Grammatik- und LIKE-Metazeilen werden weiterhin entfernt —
+ *     harmlos für die RPC (deren Whitelist entfernt Reste ohnehin), aber
+ *     zukunftssicher, falls ein Aufrufer den Term doch in einen Filter einsetzt.
  */
 const POSTGREST_META = /[,.():"\\]/g;
 

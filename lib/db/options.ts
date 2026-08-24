@@ -27,8 +27,8 @@ export const getFilterOptions = unstable_cache(async () => {
 
             supabasePublic.from('fish').select('aquarium_min_edge_length_cm').not('aquarium_min_edge_length_cm', 'is', null).order('aquarium_min_edge_length_cm', { ascending: true }).limit(1).single(),
             supabasePublic.from('fish').select('aquarium_min_edge_length_cm').not('aquarium_min_edge_length_cm', 'is', null).order('aquarium_min_edge_length_cm', { ascending: false }).limit(1).single(),
-            // Zähler aus der Materialized View
-            supabasePublic.from('origin_fish_counts').select('origin_id, published_fish_count')
+            // Zähler aus der exponierten View (Matview selbst ist für anon/authenticated gesperrt)
+            supabasePublic.from('origin_fish_counts_public').select('origin_id, published_fish_count')
         ]);
 
         const keepingTypesRes = results[0];

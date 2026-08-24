@@ -50,7 +50,8 @@ export type Fish = {
   common_names?: string; // joined string
 
   is_published?: boolean;
-  author_notes?: string | null;
+  // author_notes bewusst entfernt: Spalte ist für anon/authenticated per
+  // Column-Level-Privilege gesperrt (DB-DEFECT-003-Fix) und wird nicht gerendert.
   created_at?: string;
   updated_at?: string;
 

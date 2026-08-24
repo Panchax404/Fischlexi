@@ -27,7 +27,7 @@ export async function getFishDetails(slug: string, lang: string = 'de') {
                     water_temperature_min_c, water_temperature_max_c,
                     water_ph_min, water_ph_max, water_hardness_dh_min, water_hardness_dh_max,
                     aquarium_min_liters, aquarium_min_edge_length_cm,
-                    is_published, author_notes, created_at, updated_at,
+                    is_published, created_at, updated_at,
                     primary_habitat:habitats (id, name, description), 
                     difficulty_level:difficulty_levels (id, level_name, description),
                     fish_origins:fish_origins (origin:origins (id, name)),
@@ -141,17 +141,41 @@ export async function searchFish({ q, lang = 'de', page = 1, limit = 12, filters
             .eq('language_code', lang)
             .eq('fish.is_published', true);
 
-        // Text Search — or() auf der Basistabelle fish_translations.
-        // Da PostgREST mehrere or()-Parameter auf verschiedenen Tabellen als AND
-        // verknüpft, wird hier sauber auf name & description_general gesucht.
+        // Text Search — GIN-gestuetzte Volltextsuche via RPC (P1, DB-DEFECT-005).
+        // Die RPC (SECURITY INVOKER, respektiert RLS) liefert die fish_ids der
+        // Treffer ueber den GIN-Index (german_unaccent + Prefix-Matching) und
+        // wirkt als Praefilter; alle Filter bleiben auf der Hauptquery, damit
+        // Filterkombinationen mit der FTS-Einschraenkung per AND verknuepft werden.
+        // Der alte ILIKE-Pfad skalierte O(n) pro Zeile und war nicht indexierbar.
+        let searchFishIds: number[] | null = null;
         if (q && q.trim()) {
             const searchTerm = sanitizeSearchTerm(q);
 
             if (searchTerm.length > 0) {
-                query = query.or(
-                    `name.ilike.%${searchTerm}%,description_general.ilike.%${searchTerm}%`
-                );
+                const { data: rpcData, error: rpcError } = await supabasePublic
+                    .rpc('search_fish_by_language', {
+                        search_query: searchTerm,
+                        lang_code: lang,
+                    });
+
+                if (rpcError) {
+                    console.error('[searchFish] FTS RPC error:', rpcError);
+                    throw rpcError;
+                }
+
+                // Fail-Closed: bei RPC-Fehlern wird oben geworfen; hier nur
+                // leere Treffermenge => eq(-1) wie beim Herkunftsfilter.
+                searchFishIds = (rpcData ?? [])
+                    .map((row: { fish_id: number }) => row.fish_id)
+                    .filter((id: number) => Number.isSafeInteger(id) && id > 0);
+
+                if (searchFishIds.length === 0) {
+                    searchFishIds = [-1]; // kein Treffer => leeres Ergebnis, kein Full-Scan
+                }
             }
+        }
+        if (searchFishIds !== null) {
+            query = query.in('fish.id', searchFishIds);
         }
 
         // Multi-Select-Filter gegen Allowlist prüfen.
