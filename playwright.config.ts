@@ -1,4 +1,10 @@
 import { defineConfig, devices } from '@playwright/test';
+import dotenv from 'dotenv';
+
+// .env.local laden: Next.js tut das nur fuer den App-Server, nicht fuer den
+// Playwright-Testrunner. Die RLS-Suite (e2e/rls-security.spec.ts) liest die
+// Supabase-Keys direkt aus process.env.
+dotenv.config({ path: '.env.local' });
 
 const PORT = process.env.PORT || 3000;
 const BASE_URL = `http://localhost:${PORT}`;
