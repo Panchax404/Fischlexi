@@ -54,6 +54,17 @@ skills-lock.json
 /blob-report/
 /playwright/.cache/
 
+# documentation (kept local, not part of lean code index)
+/docs/
+*.md
+
+# local ops scripts
+/scripts/
+
+# database schema & e2e (kept local only, not part of lean code index)
+/supabase/migrations/
+/e2e/
+
 # IDE files
 .vscode/
 .idea/

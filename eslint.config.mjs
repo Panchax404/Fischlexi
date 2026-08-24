@@ -17,8 +17,6 @@ const eslintConfig = [
       "playwright-report/**",
       "test-results/**",
       "types/supabase.ts",
-      "scripts/**",
-      "lib/mock-fish-data-for-script.js",
     ],
   },
   ...compat.extends("next/core-web-vitals", "next/typescript"),
